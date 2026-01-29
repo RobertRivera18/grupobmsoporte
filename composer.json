@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.0",
+        "novay/laravel-word-template": "^2.0",
         "phpoffice/phpspreadsheet": "^4.2",
         "spatie/laravel-permission": "^6.16",
         "yajra/laravel-datatables-oracle": "^11.1"

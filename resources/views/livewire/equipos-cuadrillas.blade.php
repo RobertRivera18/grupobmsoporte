@@ -602,6 +602,7 @@
 
     <div>
         <x-dialog-modal wire:model="opciones">
+
             {{-- 🔹 TÍTULO --}}
             <x-slot name="title">
                 <div class="flex items-center gap-3">
@@ -621,11 +622,12 @@
 
             {{-- 🔹 CONTENIDO --}}
             <x-slot name="content">
+
                 {{-- FIRMA --}}
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            ✍️ Firma del responsable
+                            ✍️ Firma (Responsable / Receptor)
                         </h3>
                         <span class="text-xs text-gray-400">
                             Usa mouse o pantalla táctil
@@ -641,21 +643,52 @@
                     </div>
 
                     {{-- TOOLBAR --}}
-                    <div class="flex flex-wrap gap-2 justify-end">
+                    <div class="flex flex-wrap gap-2 justify-end mb-4">
                         <button type="button" onclick="limpiarFirma()"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded hover:bg-red-100 transition">
                             <i class="fas fa-eraser"></i> Limpiar
                         </button>
 
-                        <button type="button" onclick="enviarFirma()"
+                        <button type="button" onclick="enviarFirma('responsable')"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-                            <i class="fas fa-check"></i> Capturar
+                            <i class="fas fa-user-check"></i> Firma responsable
                         </button>
 
-                        <button type="button" wire:click="descargarFirma"
-                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
-                            <i class="fas fa-download"></i> Descargar
+                        <button type="button" onclick="enviarFirma('receptor')"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
+                            <i class="fas fa-user-edit"></i> Firma receptor
                         </button>
+                    </div>
+
+                    {{-- INDICADORES VISUALES --}}
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 text-sm">
+                            @if (isset($firmas['responsable']))
+                                <i class="fas fa-check-circle text-green-600"></i>
+                                <span class="text-green-700 font-medium">
+                                    Firma responsable capturada
+                                </span>
+                            @else
+                                <i class="fas fa-clock text-gray-400"></i>
+                                <span class="text-gray-500">
+                                    Firma responsable pendiente
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center gap-2 text-sm">
+                            @if (isset($firmas['receptor']))
+                                <i class="fas fa-check-circle text-green-600"></i>
+                                <span class="text-green-700 font-medium">
+                                    Firma receptor capturada
+                                </span>
+                            @else
+                                <i class="fas fa-clock text-gray-400"></i>
+                                <span class="text-gray-500">
+                                    Firma receptor pendiente
+                                </span>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -666,18 +699,25 @@
 
                 {{-- ACCIONES --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button wire:click="generar({{ $cuaIdSeleccionado }})"
-                        class="flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl shadow hover:bg-green-700 focus:ring-2 focus:ring-green-400 transition">
+                    <button wire:click="generar({{ $cuaIdSeleccionado }})" @disabled(!isset($firmas['responsable']))
+                        class="flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl shadow transition
+                {{ isset($firmas['responsable'])
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed' }}">
                         <i class="fas fa-sim-card"></i>
                         Acta de Chip
                     </button>
 
-                    <button wire:click="generarActaEquipo({{ $cuaIdSeleccionado }})"
-                        class="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl shadow hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 transition">
+                    <button wire:click="generarActaEquipo({{ $cuaIdSeleccionado }})" @disabled(!isset($firmas['responsable'], $firmas['receptor']))
+                        class="flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl shadow transition
+                {{ isset($firmas['responsable'], $firmas['receptor'])
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed' }}">
                         <i class="fas fa-tablet-alt"></i>
                         Acta de Equipos / Medidor
                     </button>
                 </div>
+
             </x-slot>
 
             {{-- 🔹 FOOTER --}}
@@ -689,7 +729,9 @@
                     </button>
                 </div>
             </x-slot>
+
         </x-dialog-modal>
+
 
     </div>
 
@@ -751,16 +793,18 @@
                 dibujando = false;
             }
 
-            function enviarFirma() {
+
+            function enviarFirma(tipo) {
                 if (!canvas) return;
 
                 const firmaData = canvas.toDataURL('image/png');
 
                 Livewire.dispatch('firmaCapturada', {
+                    tipo: tipo,
                     firma: firmaData
                 });
 
-                alert('Firma capturada');
+                limpiarFirma();
             }
 
             function limpiarFirma() {
@@ -769,16 +813,7 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.beginPath();
             }
-        
         </script>
-        <script>
-document.addEventListener('livewire:init', () => {
-    Livewire.on('descargar-acta', data => {
-        window.open(data.url, '_blank');
-    });
-});
-</script>
-
     @endpush
 
 

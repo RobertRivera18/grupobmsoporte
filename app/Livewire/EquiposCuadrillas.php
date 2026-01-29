@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ActaFirmada;
 use App\Models\Cuadrilla;
 use App\Models\Equipos;
 use App\Models\User;
@@ -13,6 +14,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
+use Novay\Word\Facades\Word;
+use PhpOffice\PhpWord\TemplateProcessor;
 
 class EquiposCuadrillas extends Component
 {
@@ -28,16 +31,23 @@ class EquiposCuadrillas extends Component
     public $archivo;
     public $opciones = false;
     public $firmaBase64 = null;
+    public array $firmas = [];
+
+
+
+    public function firmaCapturada(string $tipo): bool
+    {
+        return isset($this->firmas[$tipo]);
+    }
+
+
+
 
 
     #[On('firmaCapturada')]
-    public function setFirma($firma)
+    public function setFirma($tipo, $firma)
     {
-        $this->firmaBase64 = $firma;
-
-        Log::info('Firma recibida', [
-            'preview' => substr($firma, 0, 50)
-        ]);
+        $this->firmas[$tipo] = $firma;
     }
 
     public function descargarFirma()
@@ -73,20 +83,20 @@ class EquiposCuadrillas extends Component
         return response()->download($ruta)->deleteFileAfterSend(true);
     }
 
-    private function guardarFirmaTemporal(): ?string
+    private function guardarFirmaTemporal(string $firmaBase64): ?string
     {
-        if (!$this->firmaBase64) {
+        if (!$firmaBase64) {
             return null;
         }
 
-        $firma = preg_replace('#^data:image/\w+;base64,#i', '', $this->firmaBase64);
+        $firma = preg_replace('#^data:image/\w+;base64,#i', '', $firmaBase64);
         $imagen = base64_decode($firma);
 
         if ($imagen === false) {
             return null;
         }
 
-        $nombre = 'firma_' . now()->timestamp . '.png';
+        $nombre = 'firma_' . uniqid() . '.png';
         $ruta = storage_path('app/tmp/' . $nombre);
 
         if (!is_dir(dirname($ruta))) {
@@ -438,169 +448,240 @@ class EquiposCuadrillas extends Component
         }
     }
 
+    // public function generar($cuaId)
+    // {
+    //     require_once app_path('Libraries/tbs_class.php');
+    //     require_once app_path('Libraries/tbs_plugin_opentbs.php');
+
+    //     $cuadrilla = Cuadrilla::with([
+    //         'users',
+    //         'equipos' => function ($query) {
+    //             $query->where('tipo_equipo_id', 4);
+    //         }
+    //     ])->find($cuaId);
+    //     if (!$cuadrilla) {
+    //         $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+    //         return;
+    //     }
+
+
+    //     $TBS = new \clsTinyButStrong;
+    //     $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
+
+    //     $templatePath = public_path('templates/acta_entregachip.docx');
+
+    //     if (!file_exists($templatePath)) {
+    //         $this->dispatch('error', message: 'Plantilla no encontrada.');
+    //         return;
+    //     }
+
+    //     $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
+
+    //     $colaboradores = $cuadrilla->users->take(2);
+    //     $nombres = $colaboradores->pluck('name')->toArray();
+    //     $cedulas = $colaboradores->pluck('cedula')->toArray();
+
+    //     $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? 'N/A');
+    //     $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
+    //     $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? 'N/A');
+    //     $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
+    //     $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre);
+
+    //     $equipos = $cuadrilla->equipos->map(function ($equipo) {
+    //         return "{$equipo->serie}";
+    //     })->implode("\n");
+
+    //     $TBS->MergeField('cuadrilla.equipos', $equipos ?: 'Ningún equipo asignado');
+    //     $TBS->MergeField('fecha', date('d/M/Y'));
+
+    //     $fileName = "acta_chip_" . date('Y-m-d') . ".docx";
+    //     $savePath = public_path("actas/chipsCuadrillas/" . $fileName);
+
+    //     $TBS->Show(OPENTBS_FILE, $savePath);
+
+    //     if (file_exists($savePath)) {
+    //         return response()->download($savePath)->deleteFileAfterSend();
+    //     } else {
+    //         $this->dispatch('error', message: 'El archivo no se generó correctamente.');
+    //         return;
+    //     }
+    // }
+
     public function generar($cuaId)
     {
-        require_once app_path('Libraries/tbs_class.php');
-        require_once app_path('Libraries/tbs_plugin_opentbs.php');
+        if (
+            empty($this->firmas['responsable']) ||
+            empty($this->firmas['receptor'])
+        ) {
+            $this->dispatch('error', message: 'Debe capturar ambas firmas antes de generar el acta');
+            return;
+        }
 
         $cuadrilla = Cuadrilla::with([
             'users',
-            'equipos' => function ($query) {
-                $query->where('tipo_equipo_id', 4);
-            }
+            'equipos' => fn($q) => $q->where('tipo_equipo_id', 4)
         ])->find($cuaId);
+
         if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
             return;
         }
 
-
-        $TBS = new \clsTinyButStrong;
-        $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
-
         $templatePath = public_path('templates/acta_entregachip.docx');
-
         if (!file_exists($templatePath)) {
             $this->dispatch('error', message: 'Plantilla no encontrada.');
             return;
         }
 
-        $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
+        $colaboradores = $cuadrilla->users->take(2)->values();
+        $equipos = $cuadrilla->equipos
+            ->pluck('serie')
+            ->implode("\n") ?: 'Ningún equipo asignado';
+        $firmaResponsablePath = $this->guardarFirmaTemporal($this->firmas['responsable']);
+        $firmaReceptorPath    = $this->guardarFirmaTemporal($this->firmas['receptor']);
 
-        $colaboradores = $cuadrilla->users->take(2);
-        $nombres = $colaboradores->pluck('name')->toArray();
-        $cedulas = $colaboradores->pluck('cedula')->toArray();
-
-        $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre);
-
-        $equipos = $cuadrilla->equipos->map(function ($equipo) {
-            return "{$equipo->serie}";
-        })->implode("\n");
-
-        $TBS->MergeField('cuadrilla.equipos', $equipos ?: 'Ningún equipo asignado');
-        $TBS->MergeField('fecha', date('d/M/Y'));
-
-        $fileName = "acta_chip_" . date('Y-m-d') . ".docx";
-        $savePath = public_path("actas/chipsCuadrillas/" . $fileName);
-
-        $TBS->Show(OPENTBS_FILE, $savePath);
-
-        if (file_exists($savePath)) {
-            return response()->download($savePath)->deleteFileAfterSend();
-        } else {
-            $this->dispatch('error', message: 'El archivo no se generó correctamente.');
+        if (
+            !$firmaResponsablePath || !file_exists($firmaResponsablePath) ||
+            !$firmaReceptorPath || !file_exists($firmaReceptorPath)
+        ) {
+            $this->dispatch('error', message: 'No se pudo procesar una de las firmas');
             return;
         }
+        $fileName = 'acta_chip_' . $cuadrilla->cua_nombre . '_' . now()->format('Ymd_His') . '.docx';
+        $savePath = public_path('actas/chips/' . $fileName);
+
+        $template = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+        $template->setValue('fecha', now()->format('d/m/Y'));
+        $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
+        $template->setValue('colaborador1', $colaboradores[0]->name ?? 'N/A');
+        $template->setValue('cedula1', $colaboradores[0]->cedula ?? 'N/A');
+        $template->setValue('colaborador2', $colaboradores[1]->name ?? 'N/A');
+        $template->setValue('cedula2', $colaboradores[1]->cedula ?? 'N/A');
+        $template->setValue('equipos', $equipos);
+        $template->setImageValue('firma_responsable', [
+            'path'   => $firmaResponsablePath,
+            'width'  => 180,
+            'height' => 70,
+            'ratio'  => true,
+        ]);
+
+        $template->setImageValue('firma_receptor', [
+            'path'   => $firmaReceptorPath,
+            'width'  => 180,
+            'height' => 70,
+            'ratio'  => true,
+        ]);
+
+        $template->saveAs($savePath);
+        @unlink($firmaResponsablePath);
+        @unlink($firmaReceptorPath);
+        $this->firmas = [];
+
+        return response()->download($savePath)->deleteFileAfterSend();
     }
 
 
-
-   public function generarActaEquipo($cuaId)
-{
-    // ✅ 1. Validar firma obligatoria
-    if (!$this->firmaBase64) {
-        $this->dispatch('error', message: 'Debe capturar la firma antes de generar el acta');
-        return;
-    }
-
-    require_once app_path('Libraries/tbs_class.php');
-    require_once app_path('Libraries/tbs_plugin_opentbs.php');
-
-    $cuadrilla = Cuadrilla::with([
-        'users',
-        'equipos' => function ($query) {
-            $query->whereIn('tipo_equipo_id', [3, 10]);
+    public function generarActaEquipo($cuaId)
+    {
+        if (
+            empty($this->firmas['responsable']) ||
+            empty($this->firmas['receptor'])
+        ) {
+            $this->dispatch('error', message: 'Debe capturar ambas firmas antes de generar el acta');
+            return;
         }
-    ])->find($cuaId);
 
-    if (!$cuadrilla) {
-        $this->dispatch('error', message: 'Cuadrilla no encontrada.');
-        return;
+        $cuadrilla = Cuadrilla::with([
+            'users',
+            'equipos' => fn($q) => $q->whereIn('tipo_equipo_id', [3, 10])
+        ])->find($cuaId);
+
+        if (!$cuadrilla) {
+            $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+            return;
+        }
+        $equipos = $cuadrilla->equipos->values()->map(function ($equipo, $index) {
+            return [
+                'numero'      => $index + 1,
+                'descripcion' => $equipo->nombre ?? 'N/A',
+                'marca'       => $equipo->marca ?? 'N/A',
+                'modelo'      => $equipo->modelo ?? 'N/A',
+                'serie'       => $equipo->serie ?? 'N/A',
+            ];
+        })->toArray();
+
+        if (count($equipos) === 0) {
+            $equipos[] = [
+                'numero' => '',
+                'descripcion' => 'N/A',
+                'marca' => 'N/A',
+                'modelo' => 'N/A',
+                'serie' => 'N/A',
+            ];
+        }
+        $firmaResponsablePath = $this->guardarFirmaTemporal($this->firmas['responsable']);
+        $firmaReceptorPath    = $this->guardarFirmaTemporal($this->firmas['receptor']);
+
+        if (
+            !$firmaResponsablePath || !file_exists($firmaResponsablePath) ||
+            !$firmaReceptorPath || !file_exists($firmaReceptorPath)
+        ) {
+            $this->dispatch('error', message: 'No se pudo procesar una de las firmas');
+            return;
+        }
+        $templatePath = public_path('templates/acta_entregaequipo_cuadrilla_nuevo.docx');
+        $fileName = 'acta_entrega_equipo_' . now()->format('Ymd_His') . '.docx';
+        $savePath = public_path('actas/entrega_equiposCuadrillas/' . $fileName);
+
+        $template = new TemplateProcessor($templatePath);
+        $template->setValue('fecha', now()->format('d/m/Y'));
+        $template->setValue('colaborador1', $cuadrilla->users[0]->name ?? 'N/A');
+        $template->setValue('cedula1', $cuadrilla->users[0]->cedula ?? 'N/A');
+        $template->setValue('colaborador2', $cuadrilla->users[1]->name ?? 'N/A');
+        $template->setValue('cedula2', $cuadrilla->users[1]->cedula ?? 'N/A');
+        $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
+        $template->setImageValue('firma_responsable', [
+            'path'   => $firmaResponsablePath,
+            'width'  => 180,
+            'height' => 70,
+            'ratio'  => true,
+        ]);
+
+        $template->setImageValue('firma_receptor', [
+            'path'   => $firmaReceptorPath,
+            'width'  => 180,
+            'height' => 70,
+            'ratio'  => true,
+        ]);
+
+        $template->cloneRow('descripcion', count($equipos));
+        foreach ($equipos as $i => $equipo) {
+            $row = $i + 1;
+
+            $template->setValue("numero#$row", $equipo['numero']);
+            $template->setValue("descripcion#$row", $equipo['descripcion']);
+            $template->setValue("marca#$row", $equipo['marca']);
+            $template->setValue("modelo#$row", $equipo['modelo']);
+            $template->setValue("serie#$row", $equipo['serie']);
+        }
+
+        $template->saveAs($savePath);
+        ActaFirmada::create([
+            'tipo'               => 'chip',
+            'cuadrilla_id'       => $cuadrilla->id,
+            'responsable_id'     => $cuadrilla->users[0]->id ?? null,
+            'receptor_id'        => $cuadrilla->users[1]->id ?? null,
+            'cedula_responsable' => $cuadrilla->users[0]->cedula,
+            'cedula_receptor'    => $cuadrilla->users[1]->cedula ?? null,
+            'ruta_docx'          => 'actas/chips/' . $fileName,
+            'firmado_en'         => now(),
+        ]);
+        @unlink($firmaResponsablePath);
+        @unlink($firmaReceptorPath);
+
+        $this->firmas = [];
+        return response()->download($savePath)->deleteFileAfterSend();
     }
-
-    // ✅ 2. Guardar firma en archivo temporal
-    $firmaPath = $this->guardarFirmaTemporal();
-    if (!$firmaPath || !file_exists($firmaPath)) {
-        $this->dispatch('error', message: 'No se pudo procesar la firma.');
-        return;
-    }
-
-    // 🔹 Inicializar TBS
-    $TBS = new \clsTinyButStrong;
-    $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
-
-    $templatePath = public_path('templates/acta_entregaequipo_cuadrilla.docx');
-    $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
-
-    // ✅ 3. Insertar la firma en el DOCX
-    $TBS->MergeField('firma_responsable', '');
-
-    $TBS->PlugIn(OPENTBS_CHANGE_PICTURE, [
-        'pic'    => 'firma_responsable', // placeholder en Word
-        'file'   => $firmaPath,
-        'x'      => 6.5,  // ancho en cm
-        'y'      => 2.5,  // alto en cm
-        'unique' => true
-    ]);
-
-    // 🔹 Colaboradores
-    $colaboradores = $cuadrilla->users->take(2);
-    $nombres = $colaboradores->pluck('name')->toArray();
-    $cedulas = $colaboradores->pluck('cedula')->toArray();
-
-    $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? 'N/A');
-    $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
-    $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? 'N/A');
-    $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
-    $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre);
-
-    // 🔹 Equipos
-    $equipos = [];
-
-    foreach ($cuadrilla->equipos as $equipo) {
-        $equipos[] = [
-            'descripcion' => $equipo->nombre ?? 'N/A',
-            'marca'       => $equipo->marca ?? 'N/A',
-            'modelo'      => $equipo->modelo ?? 'N/A',
-            'serie'       => $equipo->serie ?? 'N/A',
-        ];
-    }
-
-    while (count($equipos) < 7) {
-        $equipos[] = [
-            'descripcion' => 'N/A',
-            'marca'       => 'N/A',
-            'modelo'      => 'N/A',
-            'serie'       => 'N/A',
-        ];
-    }
-
-    foreach ($equipos as $index => $equipo) {
-        $TBS->MergeField("equipos.descripcion_$index", $equipo['descripcion']);
-        $TBS->MergeField("equipos.marca_$index", $equipo['marca']);
-        $TBS->MergeField("equipos.modelo_$index", $equipo['modelo']);
-        $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
-    }
-
-    $TBS->MergeField('fecha', date('d/m/Y'));
-
-    // 🔹 Guardar y descargar
-    $fileName = 'acta_entrega_equipo_' . str_replace(' ', '_', strtolower($cuadrilla->cua_nombre)) . '_' . date('Ymd') . '.docx';
-    $savePath = public_path('actas/entrega_equiposCuadrillas/' . $fileName);
-
-    $TBS->Show(OPENTBS_FILE, $savePath);
-
-    // 🧹 Limpiar firma temporal
-    @unlink($firmaPath);
-    $this->firmaBase64 = null;
-
-    return response()->download($savePath)->deleteFileAfterSend();
-}
-
 
     public function cerrarModal()
     {

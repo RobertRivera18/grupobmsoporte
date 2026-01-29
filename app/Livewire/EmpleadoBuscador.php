@@ -5,11 +5,13 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Modelable;
 
 class EmpleadoBuscador extends Component
 {
     public string $search = '';
     public ?int $empleadoId = null;
+
     public ?User $empleado = null;
 
     /* ===============================
@@ -20,6 +22,11 @@ class EmpleadoBuscador extends Component
         $this->empleadoId = $id;
         $this->empleado   = User::find($id);
         $this->reset('search');
+        $this->dispatch('empleadoSeleccionado', empleado: [
+        'id'     => $this->empleado->id,
+        'cedula' => $this->empleado->cedula,
+        'name'   => $this->empleado->name,
+    ]);
     }
 
     public function limpiarEmpleado(): void

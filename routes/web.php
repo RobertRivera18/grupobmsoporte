@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ConsultasController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\HomeController;
@@ -35,3 +36,4 @@ Route::get("/generate-link-simbolik", function () {
     return "storage-link-exceute";
 });
 Route::get('/incidentes', [IncidenteController::class, 'index']);
+Route::get('/consultas', [ConsultasController::class, 'index']);
