@@ -3,24 +3,76 @@
 namespace App\Livewire;
 
 use App\Models\ActaFirmada;
+use App\Models\User;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 
 class ConsultasIndex extends Component
 {
-    public $empleado = null;
-    public $actas = [];
+    /** BUSCADOR **/
+    public string $search = '';
+    public ?int $colaboradorId = null;
+    public ?User $colaborador = null;
 
-    protected $listeners = [
-        'empleadoSeleccionado' => 'cargarActas'
-    ];
+    /** RESULTADOS **/
+    public Collection $actas;
 
-    public function cargarActas($empleado)
+    public function mount()
     {
-        $this->empleado = $empleado;
+        $this->actas = collect();
+    }
 
-        $this->actas = ActaFirmada::where('cedula_responsable', $empleado['cedula'])
-            ->orWhere('cedula_receptor', $empleado['cedula'])
-            ->orderByDesc('fecha_firma')
+    /* ===============================
+     * SELECCIONAR COLABORADOR
+     * =============================== */
+    public function seleccionarColaborador(int $id): void
+    {
+        $this->colaboradorId = $id;
+        $this->colaborador   = User::find($id);
+        $this->reset('search');
+
+        $this->cargarActas();
+    }
+
+    public function limpiarColaborador(): void
+    {
+        $this->reset(['colaboradorId', 'colaborador', 'search']);
+        $this->actas = collect();
+    }
+
+    /* ===============================
+     * BUSCADOR
+     * =============================== */
+    public function getColaboradoresProperty(): Collection
+    {
+        if (strlen($this->search) < 2) {
+            return collect();
+        }
+
+        return User::where(function ($q) {
+                $q->where('name', 'like', "%{$this->search}%")
+                  ->orWhere('cedula', 'like', "%{$this->search}%");
+            })
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'cedula']);
+    }
+
+    /* ===============================
+     * CARGAR ACTAS
+     * =============================== */
+    public function cargarActas(): void
+    {
+        if (!$this->colaboradorId) {
+            $this->actas = collect();
+            return;
+        }
+
+        $this->actas = ActaFirmada::where(function ($q) {
+                $q->where('responsable_id', $this->colaboradorId)
+                  ->orWhere('receptor_id', $this->colaboradorId);
+            })
+            ->orderByDesc('firmado_en')
             ->get();
     }
 

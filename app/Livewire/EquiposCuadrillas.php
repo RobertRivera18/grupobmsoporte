@@ -573,11 +573,21 @@ class EquiposCuadrillas extends Component
         ]);
 
         $template->saveAs($savePath);
+        ActaFirmada::create([
+            'tipo'               => 'chip',
+            'cuadrilla_id'       => $cuadrilla->id,
+            'responsable_id'     => $cuadrilla->users[0]->id ?? null,
+            'receptor_id'        => $cuadrilla->users[1]->id ?? null,
+            'cedula_responsable' => $cuadrilla->users[0]->cedula,
+            'cedula_receptor'    => $cuadrilla->users[1]->cedula ?? null,
+            'ruta_docx'          => 'actas/chips/' . $fileName,
+            'firmado_en'         => now(),
+        ]);
         @unlink($firmaResponsablePath);
         @unlink($firmaReceptorPath);
         $this->firmas = [];
 
-        return response()->download($savePath)->deleteFileAfterSend();
+        return response()->download($savePath);
     }
 
 
@@ -667,20 +677,20 @@ class EquiposCuadrillas extends Component
 
         $template->saveAs($savePath);
         ActaFirmada::create([
-            'tipo'               => 'chip',
+            'tipo'               => 'equipo',
             'cuadrilla_id'       => $cuadrilla->id,
             'responsable_id'     => $cuadrilla->users[0]->id ?? null,
             'receptor_id'        => $cuadrilla->users[1]->id ?? null,
             'cedula_responsable' => $cuadrilla->users[0]->cedula,
             'cedula_receptor'    => $cuadrilla->users[1]->cedula ?? null,
-            'ruta_docx'          => 'actas/chips/' . $fileName,
+            'ruta_docx'          => 'actas/entrega_equiposCuadrillas/' . $fileName,
             'firmado_en'         => now(),
         ]);
         @unlink($firmaResponsablePath);
         @unlink($firmaReceptorPath);
 
         $this->firmas = [];
-        return response()->download($savePath)->deleteFileAfterSend();
+        return response()->download($savePath);
     }
 
     public function cerrarModal()
