@@ -5,7 +5,7 @@
         <span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
             <i class="fas fa-search"></i>
         </span>
-
+  
         <input
             type="text"
             wire:model.live="search"

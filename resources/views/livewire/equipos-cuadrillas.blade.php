@@ -637,8 +637,8 @@
                     {{-- CANVAS --}}
                     <div class="relative bg-white rounded-lg border border-dashed border-gray-300 p-2 mb-3"
                         wire:ignore>
-                        <canvas id="canvas" width="600" height="250"
-                            class="w-full h-[220px] cursor-crosshair touch-none rounded"
+                        <canvas id="canvas" width="250" height="250"
+                            class="w-full h-[250px] cursor-crosshair touch-none rounded"
                             style="touch-action: none;"></canvas>
                     </div>
 

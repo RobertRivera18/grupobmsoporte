@@ -42,8 +42,6 @@ class EquiposCuadrillas extends Component
 
 
 
-
-
     #[On('firmaCapturada')]
     public function setFirma($tipo, $firma)
     {
@@ -560,14 +558,14 @@ class EquiposCuadrillas extends Component
         $template->setValue('equipos', $equipos);
         $template->setImageValue('firma_responsable', [
             'path'   => $firmaResponsablePath,
-            'width'  => 180,
+            'width'  => 130,
             'height' => 70,
             'ratio'  => true,
         ]);
 
         $template->setImageValue('firma_receptor', [
             'path'   => $firmaReceptorPath,
-            'width'  => 180,
+            'width'  => 130,
             'height' => 70,
             'ratio'  => true,
         ]);
@@ -591,7 +589,7 @@ class EquiposCuadrillas extends Component
     }
 
 
-    public function generarActaEquipo($cuaId)
+    /* public function generarActaEquipo($cuaId)
     {
         if (
             empty($this->firmas['responsable']) ||
@@ -691,7 +689,7 @@ class EquiposCuadrillas extends Component
 
         $this->firmas = [];
         return response()->download($savePath);
-    }
+    } */
 
     public function cerrarModal()
     {

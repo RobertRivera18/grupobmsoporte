@@ -52,13 +52,23 @@
                             @if ($incidente->archivos->count())
                                 <div class="space-y-1">
                                     @foreach ($incidente->archivos as $archivo)
-                                        <a href="{{ asset($archivo->archivo) }}" target="_blank"
+                                        @php
+                                            $url = asset($archivo->archivo);
+                                            $ext = strtolower($archivo->tipo);
+                                        @endphp
+
+                                        <a href="{{ $url }}"
+                                            @if (in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'])) target="_blank"
+               @else
+                   download @endif
                                             class="flex items-center gap-2 text-sm text-blue-600 hover:underline">
 
-                                            @if (in_array($archivo->tipo, ['jpg', 'jpeg', 'png']))
+                                            @if (in_array($ext, ['jpg', 'jpeg', 'png']))
                                                 🖼️
-                                            @elseif ($archivo->tipo === 'pdf')
+                                            @elseif ($ext === 'pdf')
                                                 📄
+                                            @elseif ($ext === 'docx')
+                                                📝
                                             @else
                                                 📎
                                             @endif
@@ -70,6 +80,7 @@
                             @else
                                 <span class="text-gray-400 text-sm">Sin archivos</span>
                             @endif
+
                         </td>
 
 
