@@ -13,16 +13,11 @@ return new class extends Migration
     {
         Schema::create('actas_firmadas', function (Blueprint $table) {
             $table->id();
-
-            // 🔗 Relaciones principales
             $table->foreignId('cuadrilla_id')
                 ->constrained()
                 ->onDelete('cascade');
 
-            // 🧾 Tipo de acta
             $table->enum('tipo', ['chip', 'equipo']);
-
-            // 👤 Firmantes (usuarios)
             $table->foreignId('responsable_id')
                 ->nullable()
                 ->constrained('users')
@@ -32,24 +27,15 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
-
-            // 🔢 Cédulas (clave para consulta pública)
             $table->string('cedula_responsable', 20);
             $table->string('cedula_receptor', 20)->nullable();
-
-            // ✍️ Firmas
             $table->string('firma_responsable')->nullable();
             $table->string('firma_receptor')->nullable();
 
-            // 📁 Archivos
+        
             $table->string('ruta_docx');
-
-            // 🗓️ Fecha real de firma
             $table->timestamp('firmado_en')->useCurrent();
-
             $table->timestamps();
-
-            // ⚡ Índices para consultas rápidas
             $table->index('cedula_responsable');
             $table->index('cedula_receptor');
         });

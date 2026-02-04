@@ -43,16 +43,7 @@
                     </p>
                 </div>
 
-                {{-- Botón revisión --}}
-                <x-button
-                    wire:click="marcarRevision"
-                    class="w-full sm:w-auto bg-gradient-to-r from-yellow-400 to-yellow-500
-                           hover:from-yellow-500 hover:to-yellow-600 text-gray-800 
-                           font-semibold px-4 py-2 rounded-lg shadow-md
-                           transition-all flex items-center justify-center gap-2">
-                    <i class="fas fa-clock text-sm"></i>
-                    Registrar Revisión
-                </x-button>
+             
 
             </div>
         </div>
@@ -99,17 +90,13 @@
                             <td class="px-3 py-4">
                                 <div class="flex flex-col items-center gap-2 min-w-[120px]">
 
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        wire:model.defer="valores.{{ $num }}"
+                                    <input type="number" step="0.01" wire:model.defer="valores.{{ $num }}"
                                         placeholder="0.00"
                                         class="w-full max-w-[110px] px-3 py-2 border-2 border-gray-300 rounded-lg 
                                                text-center font-semibold
                                                focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
 
-                                    <button
-                                        wire:click="savePeriodo({{ $num }})"
+                                    <button wire:click="savePeriodo({{ $num }})"
                                         class="w-full bg-indigo-600 hover:bg-indigo-700
                                                text-white text-xs font-semibold
                                                px-3 py-2 rounded-lg
@@ -138,7 +125,7 @@
     {{-- ============================= --}}
     {{-- OBSERVACIONES --}}
     {{-- ============================= --}}
-    <div class="bg-white rounded-xl shadow-sm border">
+    {{-- <div class="bg-white rounded-xl shadow-sm border">
 
         <div class="px-4 sm:px-6 py-4 border-b bg-emerald-50">
             <div class="flex items-center gap-3">
@@ -157,16 +144,13 @@
         </div>
 
         <div class="p-4 sm:p-6 space-y-4">
-            <textarea
-                wire:model.defer="observacion"
-                rows="4"
+            <textarea wire:model.defer="observacion" rows="4"
                 class="w-full px-4 py-3 border-2 rounded-lg resize-none
                        focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                 placeholder="Escriba observaciones..."></textarea>
 
             <div class="flex justify-end">
-                <button
-                    wire:click="saveObservacion"
+                <button wire:click="saveObservacion"
                     class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700
                            text-white font-semibold px-6 py-3 rounded-lg
                            flex items-center justify-center gap-2">
@@ -175,16 +159,13 @@
                 </button>
             </div>
         </div>
-    </div>
+    </div> --}}
 
     {{-- ============================= --}}
     {{-- MENSAJE ÉXITO --}}
     {{-- ============================= --}}
     @if (session()->has('message'))
-        <div
-            x-data="{ show: true }"
-            x-show="show"
-            x-init="setTimeout(() => show = false, 5000)"
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
             class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md">
 
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -203,9 +184,16 @@
     {{-- ============================= --}}
     {{-- GRÁFICA --}}
     {{-- ============================= --}}
+
     <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
         @livewire('grafica-indicador', ['anio' => $anio], key('grafica-' . $anio->id))
     </div>
+    <livewire:reviews-indicador :anio="$anio" />
+
+
+
+
+
 
 
     @push('js')

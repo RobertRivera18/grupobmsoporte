@@ -26,6 +26,11 @@ class IndicadorAnio extends Model
         return $this->belongsTo(Indicador::class);
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'indicador_anio_id');
+    }
+    
     public function seguimientos()
     {
         return $this->hasMany(Seguimiento::class, 'indicador_anio_id');

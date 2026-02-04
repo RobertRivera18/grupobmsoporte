@@ -52,30 +52,14 @@
                             @if ($incidente->archivos->count())
                                 <div class="space-y-1">
                                     @foreach ($incidente->archivos as $archivo)
-                                        @php
-                                            $url = asset($archivo->archivo);
-                                            $ext = strtolower($archivo->tipo);
-                                        @endphp
-
-                                        <a href="{{ $url }}"
-                                            @if (in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'])) target="_blank"
-               @else
-                   download @endif
-                                            class="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-
-                                            @if (in_array($ext, ['jpg', 'jpeg', 'png']))
-                                                🖼️
-                                            @elseif ($ext === 'pdf')
-                                                📄
-                                            @elseif ($ext === 'docx')
-                                                📝
-                                            @else
-                                                📎
-                                            @endif
-
-                                            <span>{{ basename($archivo->archivo) }}</span>
+                                        <a href="{{ asset('storage/' . $archivo->archivo) }}" download
+                                            class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+                                            <i class="fas fa-download"></i> Descargar imagen
+                                        </a>
+                                        <span>{{ basename($archivo->archivo) }}</span>
                                         </a>
                                     @endforeach
+
                                 </div>
                             @else
                                 <span class="text-gray-400 text-sm">Sin archivos</span>

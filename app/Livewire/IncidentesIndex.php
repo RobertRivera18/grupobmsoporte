@@ -71,10 +71,8 @@ class IncidentesIndex extends Component
             foreach ($this->archivos as $file) {
 
                 // Guardar archivo físicamente
-                $path = $file->store(
-                    "incidencias/{$incidencia->id}",
-                    'public'
-                );
+                $path = $file->store('incidentes/imagenes', 'public');
+
 
                 // Guardar referencia en BD
                 $incidencia->archivos()->create([

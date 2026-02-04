@@ -14,6 +14,11 @@ class SeguimientoPorAnio extends Component
     public $observacion;
     public $periodos = [];
 
+
+
+    protected $listeners = [
+        'reviewGuardada' => 'actualizarUltimaRevision',
+    ];
     public function mount(IndicadorAnio $anio)
     {
         $this->anio = $anio;
@@ -92,7 +97,7 @@ class SeguimientoPorAnio extends Component
         );
 
         $this->calcularResultado();
-       $this->dispatch('actualizar-grafica');
+        $this->dispatch('actualizarGrafica');
         $this->getGraficaData();
 
         session()->flash('message', "{$this->periodos[$periodo]} guardado correctamente.");
@@ -111,14 +116,15 @@ class SeguimientoPorAnio extends Component
         session()->flash('message', "Observación actualizada.");
     }
 
-    public function marcarRevision()
+    public function actualizarUltimaRevision($anioId)
     {
-        $this->anio->update([
-            'ultima_revision' => now()
-        ]);
-
-        session()->flash('message', "Última revisión registrada correctamente.");
+        if ($this->anio->id === $anioId) {
+            $this->anio->update([
+                'ultima_revision' => now(),
+            ]);
+        }
     }
+
 
 
     public function calcularResultado()

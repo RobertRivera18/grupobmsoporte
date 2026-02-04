@@ -106,20 +106,22 @@ class User extends Authenticatable
     }
 
     public function entregasIndumentaria()
-{
-    return $this->hasMany(
-        \App\Models\EntregaIndumentaria::class,
-        'user_id'
-    );
-}
+    {
+        return $this->hasMany(
+            \App\Models\EntregaIndumentaria::class,
+            'user_id'
+        );
+    }
 
-public function devolucionesIndumentaria()
-{
-    return $this->hasMany(
-        \App\Models\DevolucionIndumentaria::class,
-        'user_id'
-    );
-}
-
-
+    public function devolucionesIndumentaria()
+    {
+        return $this->hasMany(
+            \App\Models\DevolucionIndumentaria::class,
+            'user_id'
+        );
+    }
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
 }

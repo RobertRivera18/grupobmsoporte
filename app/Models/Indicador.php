@@ -33,4 +33,5 @@ class Indicador extends Model
     {
         return $this->belongsTo(FrecuenciaIndicador::class, 'frecuencia_id');
     }
+   
 }
