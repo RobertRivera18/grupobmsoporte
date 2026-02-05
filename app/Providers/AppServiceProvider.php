@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Actas;
+use App\Observers\ActasObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,5 +34,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::after(function ($user, $ability) {
             return $user->hasRole('Admin') ? true : null;
         });
+
+        //Observer para eliminar foto de acta adjunta de credencial,
+        Actas::observe(ActasObserver::class);
     }
 }

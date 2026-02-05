@@ -106,7 +106,7 @@
                     'url' => route('admin.areas.index'),
                     'active' => request()->routeIs('admin.areas.*'),
                     'icon' => 'fas fa-building',
-                    'can' => ['Gestion de Usuarios'],
+                    
                 ],
                 [
                     'name' => 'Cuadrillas',

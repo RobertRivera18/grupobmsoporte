@@ -42,16 +42,12 @@ class ReviewsIndicador extends Component
     public function eliminar($reviewId)
     {
         $review = Review::findOrFail($reviewId);
-        if ($review->user_id !== auth()->id()) {
-            abort(403);
-        }
-
+        $this->authorize('delete', $review);
         $review->delete();
         $this->dispatch('$refresh');
-
-        // 🔔 Mensaje opcional
         session()->flash('message', 'Reseña eliminada correctamente.');
     }
+
 
     public function render()
     {

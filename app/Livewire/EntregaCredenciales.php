@@ -7,10 +7,16 @@ use App\Models\TipoContrato;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Str;
+use Intervention\Image\Facades\Image;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+
+
 
 
 class EntregaCredenciales extends Component
@@ -147,36 +153,48 @@ class EntregaCredenciales extends Component
         $this->modalDatosActa = true;
         $this->open = false;
     }
-    public function guardarActa()
-    {
-        $this->validate();
+   
 
-        DB::beginTransaction();
+public function guardarActa()
+{
+    $this->validate();
 
-        try {
-            $rutaImagen = null;
-            if ($this->imagen) {
-                $rutaImagen = $this->imagen->store('actas/imagenes', 'public');
-            }
+    DB::beginTransaction();
 
-            Actas::create([
-                'user_id' => $this->colaboradorSeleccionado,
-                'fecha_entrega' => Carbon::now(),
-                'empresa' => $this->empresa,
-                'tipo_sangre' => $this->tipo_sangre,
-                'tipo_contrato_id' => $this->tipo_contrato_id,
-                'imagen_path' => $rutaImagen,
-            ]);
+    try {
+        $rutaImagen = null;
 
-            DB::commit();
+        if ($this->imagen) {
+            $manager = new ImageManager(new Driver());
+            $img = $manager->read($this->imagen->getRealPath());
+            $img = $img->toJpeg(70);
+            $nombreArchivo = 'actas/imagenes/' . uniqid() . '.jpg';
+            Storage::disk('public')->put($nombreArchivo, $img);
 
-            $this->reset(['empresa', 'tipo_sangre', 'tipo_contrato_id', 'imagen', 'modalDatosActa']);
-            session()->flash('message', 'Acta creada correctamente.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            session()->flash('error', 'Error al crear el acta: ' . $e->getMessage());
+            $rutaImagen = $nombreArchivo;
         }
+
+        Actas::create([
+            'user_id' => $this->colaboradorSeleccionado,
+            'fecha_entrega' => Carbon::now(),
+            'empresa' => $this->empresa,
+            'tipo_sangre' => $this->tipo_sangre,
+            'tipo_contrato_id' => $this->tipo_contrato_id,
+            'imagen_path' => $rutaImagen,
+        ]);
+
+        DB::commit();
+
+        $this->reset(['empresa', 'tipo_sangre', 'tipo_contrato_id', 'imagen', 'modalDatosActa']);
+        session()->flash('message', 'Acta creada correctamente.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        session()->flash('error', 'Error al crear el acta: ' . $e->getMessage());
     }
+}
+
+
 
     public function eliminarActa($id)
     {

@@ -138,32 +138,33 @@
                                         @endfor
                                     </ul>
 
-                                    {{-- COMENTARIO --}}
+
                                     <p class="text-xs text-gray-600 leading-snug line-clamp-3">
                                         {{ $review->comment }}
                                     </p>
                                 </div>
 
-                                {{-- DROPDOWN JETSTREAM --}}
-                                <x-dropdown align="right" width="32">
-                                    <x-slot name="trigger">
-                                        <span
-                                            class="cursor-pointer text-gray-400 hover:text-gray-600
+
+
+                                @can('delete', $review)
+                                    <x-dropdown align="right" width="32">
+                                        <x-slot name="trigger">
+                                            <span
+                                                class="cursor-pointer text-gray-400 hover:text-gray-600
                    text-lg leading-none select-none transition">
-                                            &middot;&middot;&middot;
-                                        </span>
-                                    </x-slot>
+                                                &middot;&middot;&middot;
+                                            </span>
+                                        </x-slot>
 
-                                    <x-slot name="content">
-                                        <x-dropdown-link wire:click="eliminar({{ $review->id }})"
-                                            class="text-red-600 hover:bg-red-50 cursor-pointer">
-                                            <i class="fas fa-trash-alt text-xs mr-2"></i>
-                                            Eliminar
-                                        </x-dropdown-link>
-                                    </x-slot>
-                                </x-dropdown>
-
-
+                                        <x-slot name="content">
+                                            <x-dropdown-link wire:click="eliminar({{ $review->id }})"
+                                                class="text-red-600 hover:bg-red-50 cursor-pointer">
+                                                <i class="fas fa-trash-alt text-xs mr-2"></i>
+                                                Eliminar
+                                            </x-dropdown-link>
+                                        </x-slot>
+                                    </x-dropdown>
+                                @endcan
                             </article>
                         @endforeach
 
