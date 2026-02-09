@@ -174,7 +174,6 @@ public function eliminar($entregaId)
     if (auth()->user()->hasRole('operador2')) {
         $query->where('ubicacion_id', 2);
     }
-
     return view('livewire.entrega-indumentarias-index', [
         'entregas' => $query->latest()->paginate(10),
     ]);

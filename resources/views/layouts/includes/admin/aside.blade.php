@@ -10,7 +10,6 @@
             'icon' => 'fas fa-gauge-simple-high',
             'can' => ['Acceso al Dashboard'],
         ],
-        
 
         [
             'name' => 'EPP',
@@ -102,11 +101,11 @@
             'icon' => 'fas fa-building',
             'submenu' => [
                 [
-                    'name' => 'Áreas',
+                    'name' => 'Procesos de Auditoria',
                     'url' => route('admin.areas.index'),
                     'active' => request()->routeIs('admin.areas.*'),
                     'icon' => 'fas fa-building',
-                    
+                    'can' => ['Gestion de cuadrillas'],
                 ],
                 [
                     'name' => 'Cuadrillas',
@@ -219,7 +218,6 @@
         ],
     ];
 @endphp
-
 
 <aside id="logo-sidebar"
     class="fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-transform -translate-x-full bg-white border-r border-gray-200 sm:translate-x-0 dark:bg-gray-800 dark:border-gray-700"

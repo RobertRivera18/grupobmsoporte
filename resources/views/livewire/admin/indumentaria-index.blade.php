@@ -3,7 +3,8 @@
     {{-- 🔍 BUSCADOR --}}
     <div class="px-6 pt-6">
         <div class="relative">
-            <input wire:model.live="search" type="text"
+            <input wire:model.live.debounce.400ms="search"
+            type="text"
                 class="w-full pl-10 pr-4 py-2 text-sm border rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="Buscar indumentaria por nombre o tipo...">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">

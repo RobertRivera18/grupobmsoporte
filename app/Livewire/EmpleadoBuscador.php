@@ -20,13 +20,15 @@ class EmpleadoBuscador extends Component
     public function seleccionarEmpleado(int $id): void
     {
         $this->empleadoId = $id;
-        $this->empleado   = User::find($id);
+
+        $this->empleado = User::select('id', 'cedula', 'name')
+            ->find($id);
         $this->reset('search');
         $this->dispatch('empleadoSeleccionado', empleado: [
-        'id'     => $this->empleado->id,
-        'cedula' => $this->empleado->cedula,
-        'name'   => $this->empleado->name,
-    ]);
+            'id'     => $this->empleado->id,
+            'cedula' => $this->empleado->cedula,
+            'name'   => $this->empleado->name,
+        ]);
     }
 
     public function limpiarEmpleado(): void
@@ -37,20 +39,20 @@ class EmpleadoBuscador extends Component
     /* ===============================
      * BUSCADOR
      * =============================== */
-   public function getEmpleadosProperty(): Collection
-{
-    if (strlen($this->search) < 2) {
-        return collect();
-    }
+    public function getEmpleadosProperty(): Collection
+    {
+        if (strlen($this->search) < 2) {
+            return collect();
+        }
 
-    return User::where(function ($query) {
+        return User::where(function ($query) {
             $query->where('name', 'like', "%{$this->search}%")
-                  ->orWhere('cedula', 'like', "%{$this->search}%");
+                ->orWhere('cedula', 'like', "%{$this->search}%");
         })
-        ->orderBy('name')
-        ->limit(10)
-        ->get(['id', 'name', 'cedula']);
-}
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'cedula']);
+    }
 
     public function render()
     {

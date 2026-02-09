@@ -124,4 +124,15 @@ class User extends Authenticatable
     {
         return $this->hasMany(Review::class);
     }
+
+    //Auditorias
+    public function auditoriasComoAuditor()
+    {
+        return $this->hasMany(AuditoriaProceso::class, 'auditor_id');
+    }
+
+    public function auditoriasComoResponsable()
+    {
+        return $this->hasMany(AuditoriaProceso::class, 'responsable_id');
+    }
 }

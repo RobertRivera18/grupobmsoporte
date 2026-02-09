@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\AuditoriaController;
+use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CredencialesController;
 use App\Http\Controllers\Admin\CuadrillaController;
@@ -165,3 +167,10 @@ Route::get(
     '/indumentarias/devoluciones/empleado/{user}',
     [EntregaIndumentariaController::class, 'entregasPorEmpleado']
 )->name('admin.indumentarias.devoluciones.entregas.empleado');
+
+
+Route::get('calendar', [CalendarController::class, 'index'])
+    ->name('admin.calendar.index');
+
+Route::resource('/auditorias', AuditoriaController::class)
+    ->names('admin.auditorias');

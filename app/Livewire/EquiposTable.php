@@ -125,7 +125,6 @@ class EquiposTable extends Component
             (new Xlsx($spreadsheet))->save($path);
 
             return response()->download($path)->deleteFileAfterSend();
-
         } catch (\Throwable $e) {
             $this->dispatch('swal', [
                 'icon' => 'error',
@@ -163,10 +162,10 @@ class EquiposTable extends Component
         $equipos = Equipos::query()
             ->where(function ($q) use ($search) {
                 $q->where('nombre', 'like', $search)
-                  ->orWhere('serie', 'like', $search);
+                    ->orWhere('serie', 'like', $search);
             })
-            ->orWhereHas('users', fn ($q) => $q->where('name', 'like', $search))
-            ->orWhereHas('cuadrilla', fn ($q) => $q->where('cua_nombre', 'like', $search))
+            ->orWhereHas('users', fn($q) => $q->where('name', 'like', $search))
+            ->orWhereHas('cuadrilla', fn($q) => $q->where('cua_nombre', 'like', $search))
             ->with(['users:id,name', 'cuadrilla:id,cua_nombre'])
             ->latest()
             ->paginate(40);
