@@ -9,7 +9,7 @@ class Area extends Model
     protected $fillable = [
         'nombre'
     ];
-    
+
 
     public function indicadores()
     {
@@ -19,5 +19,10 @@ class Area extends Model
     public function indicadores_anio()
     {
         return $this->hasMany(IndicadorAnio::class);
+    }
+
+    public function auditoriaProcesos()
+    {
+        return $this->hasMany(AuditoriaProceso::class,'area_id');
     }
 }

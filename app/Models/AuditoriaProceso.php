@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditoriaProceso extends Model
 {
+    protected $table = 'auditoria_proceso';
     protected $fillable = [
         'auditoria_id',
         'area_id',
@@ -18,15 +19,21 @@ class AuditoriaProceso extends Model
         return $this->belongsTo(Auditoria::class);
     }
 
-    public function proceso()
+    public function area()
     {
         return $this->belongsTo(Area::class);
     }
 
-    public function auditoriaNormas()
+    public function normas()
     {
-        return $this->hasMany(AuditoriaNorma::class);
+        return $this->belongsToMany(
+            NormaISO::class,
+            'auditoria_norma',
+            'auditoria_proceso_id',
+            'norma_iso_id'
+        )->withTimestamps();
     }
+
 
     public function auditor()
     {
@@ -36,5 +43,10 @@ class AuditoriaProceso extends Model
     public function responsable()
     {
         return $this->belongsTo(User::class, 'responsable_id');
+    }
+    
+    public function informes()
+    {
+        return $this->hasMany(InformeAuditoria::class, 'auditoria_proceso_id');
     }
 }

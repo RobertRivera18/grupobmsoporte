@@ -12,6 +12,10 @@ class Auditoria extends Model
         'fecha_fin',
         'estado',
     ];
+    protected $casts = [
+        'fecha_inicio' => 'date',
+        'fecha_fin' => 'date',
+    ];
     public function procesos()
     {
         return $this->hasMany(AuditoriaProceso::class);

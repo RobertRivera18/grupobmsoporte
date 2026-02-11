@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Auditoria;
+use App\Models\AuditoriaProceso;
 use Illuminate\Http\Request;
 
 class AuditoriaController extends Controller
@@ -57,17 +58,23 @@ class AuditoriaController extends Controller
     }
 
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show(Auditoria $auditoria)
     {
-        //
+        return view('admin.auditorias.show', compact('auditoria'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
+    public function detalle(Auditoria $auditoria, AuditoriaProceso $proceso)
+    {
+        abort_if($proceso->auditoria_id !== $auditoria->id, 404);
+        
+        return view('admin.auditorias.detalle', [
+            'auditoria' => $auditoria,
+            'proceso'   => $proceso,
+        ]);
+        
+    }
+
+
     public function edit(string $id)
     {
         //

@@ -11,4 +11,14 @@ class NormaISO extends Model
         'codigo',
         'descripcion',
     ];
+
+    public function auditoriaProcesos()
+    {
+        return $this->belongsToMany(
+            AuditoriaProceso::class,
+            'auditoria_norma',
+            'norma_iso_id',
+            'auditoria_proceso_id'
+        );
+    }
 }

@@ -172,5 +172,14 @@ Route::get(
 Route::get('calendar', [CalendarController::class, 'index'])
     ->name('admin.calendar.index');
 
+
+//Carga Informes de Auditoria
+Route::get(
+    '/auditorias/{auditoria}/procesos/{proceso}',
+    [AuditoriaController::class, 'detalle']
+)->name('admin.auditorias.procesos.detalle');
+
+
+//Ruta Resoruce de Auditorias
 Route::resource('/auditorias', AuditoriaController::class)
     ->names('admin.auditorias');
