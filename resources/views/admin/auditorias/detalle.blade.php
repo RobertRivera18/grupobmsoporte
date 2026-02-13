@@ -62,19 +62,14 @@
     </div>
 
     {{-- SECCIÓN DE CONTENIDO --}}
-    <div class="bg-white rounded-xl shadow-sm border p-6">
+    <div>
 
         <h2 class="text-lg font-semibold text-gray-800 mb-4">
             Gestión del proceso
         </h2>
 
-        <div class="bg-white rounded-xl shadow-sm border p-6">
+        <div>
             <livewire:admin.auditorias.informes-manager :proceso="$proceso" />
         </div>
-
-
     </div>
-
-
-
 </x-admin-layout>

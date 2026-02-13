@@ -58,13 +58,14 @@
                 </a>
 
                 <button wire:click="eliminar({{ $auditoria->id }})"
+                    wire:confirm="¿Estás seguro de eliminar esta auditoría?"
                     class="p-2 rounded-lg bg-white shadow hover:bg-red-50
-                           text-gray-500 hover:text-red-600 transition"
+           text-gray-500 hover:text-red-600 transition"
                     title="Eliminar auditoría">
                     <i class="fas fa-trash"></i>
                 </button>
-            </div>
 
+            </div>
         </div>
     @endforeach
 </div>

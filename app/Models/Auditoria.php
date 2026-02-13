@@ -13,8 +13,8 @@ class Auditoria extends Model
         'estado',
     ];
     protected $casts = [
-        'fecha_inicio' => 'date',
-        'fecha_fin' => 'date',
+        'fecha_inicio' => 'datetime',
+        'fecha_fin' => 'datetime',
     ];
     public function procesos()
     {

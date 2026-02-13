@@ -12,9 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('indicadores', function (Blueprint $table) {
-            $table->foreignId('user_id')
-                ->constrained('users')
-                ->nullOnDelete();
+            $table->foreignId('frecuencia_id')
+                  ->after('forma_calculo')
+                  ->constrained('frecuencias_indicadores')
+                  ->cascadeOnDelete();
         });
     }
 
@@ -24,11 +25,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('indicadores', function (Blueprint $table) {
-            $table->dropForeign(['frecuencia_id']);
-            $table->dropColumn('frecuencia_id');
-
-            // Opcional: volver a dejar frecuencia como texto
-            $table->string('frecuencia')->nullable();
+            //
         });
     }
 };

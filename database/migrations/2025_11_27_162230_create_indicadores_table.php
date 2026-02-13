@@ -21,7 +21,7 @@ return new class extends Migration
 
             $table->foreignId('responsable_id')
                   ->constrained('users')
-                  ->cascadeOnDelete();
+                ;
 
             $table->date('ultima_fecha_revision')->nullable();
             $table->string('resultado_obtenido')->nullable();

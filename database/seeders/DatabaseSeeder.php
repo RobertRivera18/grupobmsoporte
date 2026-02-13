@@ -37,5 +37,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PermisosSeeder::class);
         $this->call(TipoEquiposSeeder::class);
         $this->call(FrecuenciasIndicadoresSeeder::class);
+        $this->call(NormasIsoSeeder::class);
+
     }
 }

@@ -5,9 +5,7 @@ namespace App\Livewire\Admin;
 use App\Models\Incidencia;
 use Livewire\Component;
 
-class IncidentesIndex extends Component
-
-{
+class IncidentesIndex extends Component{
     public $incidentes;
 
     protected $listeners = [
@@ -20,11 +18,11 @@ class IncidentesIndex extends Component
     }
 
     public function cargarIncidentes()
-{
-    $this->incidentes = Incidencia::with(['usuario', 'archivos'])
-        ->orderBy('id', 'desc')
-        ->get();
-}
+    {
+        $this->incidentes = Incidencia::with(['usuario', 'archivos'])
+            ->orderBy('id', 'desc')
+            ->get();
+    }
 
     public function eliminarIncidencia($incidenciaId)
     {

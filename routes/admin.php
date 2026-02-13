@@ -177,9 +177,10 @@ Route::get('calendar', [CalendarController::class, 'index'])
 Route::get(
     '/auditorias/{auditoria}/procesos/{proceso}',
     [AuditoriaController::class, 'detalle']
-)->name('admin.auditorias.procesos.detalle');
-
+)->name('admin.auditorias.procesos.detalle')
+    ->middleware(['can:Auditorias']);
 
 //Ruta Resoruce de Auditorias
 Route::resource('/auditorias', AuditoriaController::class)
-    ->names('admin.auditorias');
+    ->names('admin.auditorias')
+    ->middleware(['can:Auditorias']);;

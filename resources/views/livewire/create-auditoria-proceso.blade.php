@@ -11,116 +11,116 @@
     </div>
 
     {{-- ================= FORMULARIO ================= --}}
-    <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+    @role('Admin|LiderAuditorias')
+        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
 
-        {{-- Top Gradient --}}
-        <div class="bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 px-8 py-6 text-white">
-            <h3 class="text-lg font-semibold">
-                ➕ Crear proceso de auditoría
-            </h3>
-            <p class="text-indigo-100 text-sm mt-1">
-                Configura área, responsables y normas aplicables.
-            </p>
-        </div>
+            {{-- Top Gradient --}}
+            <div class="bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 px-8 py-6 text-white">
+                <h3 class="text-lg font-semibold">
+                    ➕ Crear proceso de auditoría
+                </h3>
+                <p class="text-indigo-100 text-sm mt-1">
+                    Configura área, responsables y normas aplicables.
+                </p>
+            </div>
 
-        <div class="p-8 bg-gray-50">
+            <div class="p-8 bg-gray-50">
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-                {{-- Área --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        Área
-                    </label>
-                    <select wire:model="area_id"
-                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500 shadow-sm transition">
-                        <option value="">Seleccione un área</option>
-                        @foreach ($areas as $area)
-                            <option value="{{ $area->id }}">{{ $area->nombre }}</option>
-                        @endforeach
-                    </select>
-                    @error('area_id')
-                        <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span>
-                    @enderror
-                </div>
+                    {{-- Área --}}
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Área
+                        </label>
+                        <select wire:model="area_id"
+                            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500 shadow-sm transition">
+                            <option value="">Seleccione un área</option>
+                            @foreach ($areas as $area)
+                                <option value="{{ $area->id }}">{{ $area->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('area_id')
+                            <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span>
+                        @enderror
+                    </div>
 
-                {{-- Auditor --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        Auditor
-                    </label>
-                    <select wire:model="auditor_id"
-                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 shadow-sm transition">
-                        <option value="">Seleccione auditor</option>
-                        @foreach ($auditores as $user)
-                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                    {{-- Auditor --}}
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Auditor
+                        </label>
+                        <select wire:model="auditor_id"
+                            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 shadow-sm transition">
+                            <option value="">Seleccione auditor</option>
+                            @foreach ($auditores as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                {{-- Responsable --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        Responsable del área
-                    </label>
-                    <select wire:model="responsable_id"
-                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-500 shadow-sm transition">
-                        <option value="">Seleccione responsable</option>
-                        @foreach ($responsables as $user)
-                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                    {{-- Responsable --}}
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Responsable del área
+                        </label>
+                        <select wire:model="responsable_id"
+                            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-500 shadow-sm transition">
+                            <option value="">Seleccione responsable</option>
+                            @foreach ($responsables as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                {{-- Normas ISO --}}
-                <div class="md:col-span-3">
-                    <label class="block text-sm font-semibold text-gray-700 mb-3">
-                        📘 Normas ISO aplicables
-                    </label>
+                    {{-- Normas ISO --}}
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">
+                            📘 Normas ISO aplicables
+                        </label>
 
-                    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 
-                            @foreach ($normasIso as $norma)
-                                <label
-                                    class="group flex items-start gap-3 p-4 rounded-xl border border-gray-200 bg-gray-50
+                                @foreach ($normasIso as $norma)
+                                    <label
+                                        class="group flex items-start gap-3 p-4 rounded-xl border border-gray-200 bg-gray-50
                                            hover:bg-indigo-50 hover:border-indigo-400 transition cursor-pointer">
 
-                                    <input type="checkbox"
-                                        wire:model="normas"
-                                        value="{{ $norma->id }}"
-                                        class="mt-1 rounded text-indigo-600 focus:ring-indigo-500">
+                                        <input type="checkbox" wire:model="normas" value="{{ $norma->id }}"
+                                            class="mt-1 rounded text-indigo-600 focus:ring-indigo-500">
 
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-800 group-hover:text-indigo-700">
-                                            {{ $norma->codigo }}
-                                        </p>
-                                        <p class="text-xs text-gray-500">
-                                            {{ $norma->descripcion }}
-                                        </p>
-                                    </div>
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-800 group-hover:text-indigo-700">
+                                                {{ $norma->codigo }}
+                                            </p>
+                                            <p class="text-xs text-gray-500">
+                                                {{ $norma->descripcion }}
+                                            </p>
+                                        </div>
 
-                                </label>
-                            @endforeach
+                                    </label>
+                                @endforeach
 
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {{-- Botón --}}
-            <div class="flex justify-end mt-10">
-                <button wire:click="save"
-                    class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600
+                {{-- Botón --}}
+                <div class="flex justify-end mt-10">
+                    <button wire:click="save"
+                        class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600
                            hover:from-indigo-700 hover:to-blue-700
                            text-white px-7 py-3 rounded-xl font-semibold shadow-md
                            hover:shadow-xl hover:scale-105 transition">
-                    💾 Guardar proceso
-                </button>
-            </div>
+                        💾 Guardar proceso
+                    </button>
+                </div>
 
+            </div>
         </div>
-    </div>
+    @endrole
 
     {{-- ================= LISTADO ================= --}}
     <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
@@ -179,19 +179,19 @@
 
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center items-center gap-4">
+                                    @can('delete', $proceso)
+                                        <button wire:click="eliminar({{ $proceso->id }})"
+                                            class="text-red-500 hover:text-red-700 transition" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    @endcan
 
-                                    <button
-                                        wire:click="eliminar({{ $proceso->id }})"
-                                        class="text-red-500 hover:text-red-700 transition"
-                                        title="Eliminar">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-
-                                    <a href="{{ route('admin.auditorias.procesos.detalle', [$auditoria, $proceso]) }}"
-                                        class="text-indigo-600 hover:text-indigo-800 transition"
-                                        title="Ver detalle">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
+                                    @can('view', $proceso)
+                                        <a href="{{ route('admin.auditorias.procesos.detalle', [$auditoria, $proceso]) }}"
+                                            class="text-indigo-600 hover:text-indigo-800 transition" title="Ver detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @endcan
 
                                 </div>
                             </td>

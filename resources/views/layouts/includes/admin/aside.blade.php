@@ -108,6 +108,13 @@
                     'can' => ['Gestion de cuadrillas'],
                 ],
                 [
+                    'name' => 'Auditorias Internas',
+                    'url' => route('admin.auditorias.index'),
+                    'active' => request()->routeIs('admin.auditorias.*'),
+                    'icon' => 'fas fa-building',
+                    'can' => ['Auditorias'],
+                ],
+                [
                     'name' => 'Cuadrillas',
                     'url' => route('admin.cuadrillas.index'),
                     'active' => request()->routeIs('admin.cuadrillas.*'),

@@ -60,6 +60,7 @@ class AuditoriaController extends Controller
 
     public function show(Auditoria $auditoria)
     {
+        
         return view('admin.auditorias.show', compact('auditoria'));
     }
 

@@ -4,15 +4,18 @@ namespace App\Livewire;
 
 use App\Models\Area;
 use App\Models\Auditoria;
-use App\Models\AuditoriaNorma;
 use App\Models\AuditoriaProceso;
 use App\Models\NormaISO;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+
 
 class CreateAuditoriaProceso extends Component
 {
+    use AuthorizesRequests;
     public Auditoria $auditoria;
     public $area_id;
     public $auditor_id;
@@ -21,16 +24,20 @@ class CreateAuditoriaProceso extends Component
     public $procesos = [];
 
 
-
-    public function mount(Auditoria $auditoria)
+    private function refreshProcesos()
     {
-        $this->auditoria = $auditoria;
-
         $this->procesos = $this->auditoria
             ->procesos()
             ->with(['area', 'auditor', 'responsable', 'normas'])
             ->get();
     }
+    public function mount(Auditoria $auditoria)
+    {
+        $this->authorize('view', $auditoria);
+        $this->auditoria = $auditoria;
+        $this->refreshProcesos();
+    }
+
 
     public function rules()
     {
@@ -47,16 +54,6 @@ class CreateAuditoriaProceso extends Component
     public function save()
     {
         $this->validate();
-
-        if ($this->auditor_id === $this->responsable_id) {
-            $this->dispatch('swal', [
-                'icon' => 'error',
-                'title' => 'Validación',
-                'text' => 'El auditor no puede ser el responsable del área.',
-            ]);
-            return;
-        }
-
         DB::transaction(function () {
             $proceso = AuditoriaProceso::create([
                 'auditoria_id'   => $this->auditoria->id,
@@ -83,50 +80,37 @@ class CreateAuditoriaProceso extends Component
     }
 
 
+
     public function eliminar($id)
     {
-        DB::beginTransaction();
+        DB::transaction(function () use ($id) {
 
-        try {
             $proceso = AuditoriaProceso::findOrFail($id);
             $proceso->normas()->detach();
             $proceso->delete();
+        });
 
-            DB::commit();
-
-            $this->procesos = $this->auditoria
-                ->procesos()
-                ->with(['area', 'auditor', 'responsable', 'normas'])
-                ->get();
-
-            $this->dispatch('swal', [
-                'icon' => 'success',
-                'title' => 'Eliminado',
-                'text' => 'El proceso de auditoría fue eliminado correctamente.',
-            ]);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            $this->dispatch('swal', [
-                'icon' => 'error',
-                'title' => 'Error',
-                'text' => 'No se pudo eliminar el proceso.',
-            ]);
-        }
+        $this->refreshProcesos();
+        $this->dispatch('swal', [
+            'icon' => 'success',
+            'title' => 'Eliminado',
+            'text' => 'El proceso de auditoría fue eliminado correctamente.',
+        ]);
     }
-
-
-
 
 
     public function render()
     {
         return view('livewire.create-auditoria-proceso', [
             'areas' => Area::orderBy('nombre')->get(),
-            'auditores' => User::role('Admin')->get(),
+            'auditores' => User::whereHas('roles', function ($query) {
+                $query->whereIn('name', ['Admin', 'Auditor', 'LiderAuditorias']);
+            })
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
             'responsables' => User::all(),
-            'normasIso' => NormaISO::orderBy('codigo')->get(),
-
+            'normasIso' => NormaISO::orderBy('id')->get(),
         ]);
     }
 }

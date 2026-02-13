@@ -153,46 +153,45 @@ class EntregaCredenciales extends Component
         $this->modalDatosActa = true;
         $this->open = false;
     }
-   
 
-public function guardarActa()
-{
-    $this->validate();
 
-    DB::beginTransaction();
+    public function guardarActa()
+    {
+        $this->validate();
 
-    try {
-        $rutaImagen = null;
+        DB::beginTransaction();
 
-        if ($this->imagen) {
-            $manager = new ImageManager(new Driver());
-            $img = $manager->read($this->imagen->getRealPath());
-            $img = $img->toJpeg(70);
-            $nombreArchivo = 'actas/imagenes/' . uniqid() . '.jpg';
-            Storage::disk('public')->put($nombreArchivo, $img);
+        try {
+            $rutaImagen = null;
 
-            $rutaImagen = $nombreArchivo;
+            if ($this->imagen) {
+                $manager = new ImageManager(new Driver());
+                $img = $manager->read($this->imagen->getRealPath());
+                $img = $img->toJpeg(70);
+                $nombreArchivo = 'actas/imagenes/' . uniqid() . '.jpg';
+                Storage::disk('public')->put($nombreArchivo, $img);
+
+                $rutaImagen = $nombreArchivo;
+            }
+
+            Actas::create([
+                'user_id' => $this->colaboradorSeleccionado,
+                'fecha_entrega' => Carbon::now(),
+                'empresa' => $this->empresa,
+                'tipo_sangre' => $this->tipo_sangre,
+                'tipo_contrato_id' => $this->tipo_contrato_id,
+                'imagen_path' => $rutaImagen,
+            ]);
+
+            DB::commit();
+
+            $this->reset(['empresa', 'tipo_sangre', 'tipo_contrato_id', 'imagen', 'modalDatosActa']);
+            session()->flash('message', 'Acta creada correctamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Error al crear el acta: ' . $e->getMessage());
         }
-
-        Actas::create([
-            'user_id' => $this->colaboradorSeleccionado,
-            'fecha_entrega' => Carbon::now(),
-            'empresa' => $this->empresa,
-            'tipo_sangre' => $this->tipo_sangre,
-            'tipo_contrato_id' => $this->tipo_contrato_id,
-            'imagen_path' => $rutaImagen,
-        ]);
-
-        DB::commit();
-
-        $this->reset(['empresa', 'tipo_sangre', 'tipo_contrato_id', 'imagen', 'modalDatosActa']);
-        session()->flash('message', 'Acta creada correctamente.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        session()->flash('error', 'Error al crear el acta: ' . $e->getMessage());
     }
-}
 
 
 
@@ -324,7 +323,7 @@ public function guardarActa()
 
     public function render()
     {
-        $actas = Actas::with('tipoContrato') 
+        $actas = Actas::with('tipoContrato')
             ->whereHas('user', function ($query) {
                 $query->where('name', 'like', '%' . $this->search . '%');
             })
