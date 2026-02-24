@@ -19,10 +19,10 @@
                     <th class="px-4 py-3 text-left">Fecha</th>
                     <th class="px-4 py-3 text-left">Empleado</th>
                     <th class="px-4 py-3 text-left">Bodega</th>
+                    <th class="px-4 py-3 text-left">Tipo</th> {{-- NUEVA COLUMNA --}}
                     <th class="px-4 py-3 text-left">Indumentarias entregadas</th>
                     <th class="px-4 py-3 text-center">Acta</th>
                     <th class="px-4 py-3 text-center"></th>
-
                 </tr>
             </thead>
 
@@ -54,6 +54,24 @@
                                 bg-blue-100 text-blue-700">
                                 🏭 {{ $e->ubicacion->nombre }}
                             </span>
+                        </td>
+
+                        {{-- TIPO ENTREGA --}}
+                        <td class="px-4 py-3">
+                            @if ($e->es_historica)
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs
+                                    bg-amber-100 text-amber-700 font-medium">
+                                    🕰️ Histórica
+                                </span>
+                                <div class="text-[11px] text-amber-600 mt-1">
+                                    Generada automáticamente
+                                </div>
+                            @else
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs
+                                    bg-green-100 text-green-700 font-medium">
+                                    ✅ Normal
+                                </span>
+                            @endif
                         </td>
 
                         {{-- INDUMENTARIAS --}}
@@ -93,34 +111,45 @@
                                 @endforeach
                             </div>
                         </td>
+
                         {{-- ACTA DE ENTREGA --}}
                         <td class="px-4 py-3 text-center">
-                            <button wire:click="generarActa({{ $e->id }})" title="Descargar acta de entrega"
+                            <button wire:click="generarActa({{ $e->id }})"
+                                title="Descargar acta de entrega"
                                 class="inline-flex items-center justify-center
-               w-9 h-9 rounded-full
-               bg-indigo-100 text-indigo-700
-               hover:bg-indigo-200 hover:text-indigo-900
-               transition">
+                                w-9 h-9 rounded-full
+                                bg-indigo-100 text-indigo-700
+                                hover:bg-indigo-200 hover:text-indigo-900
+                                transition">
                                 <i class="fa-solid fa-file-word text-lg"></i>
                             </button>
                         </td>
 
+                        {{-- ELIMINAR --}}
                         <td class="px-4 py-3 text-center">
-                            <button wire:click="eliminar({{ $e->id }})" title="Eliminar Registro Entrega"
-                                class="inline-flex items-center justify-center
-               w-9 h-9 rounded-full
-               bg-red-100 text-red-700
-               hover:bg-red-200 hover:text-red-900
-               transition">
-                                <i class="fas fa-trash-alt text-lg"></i>
-                            </button>
-                        </td>
 
+                            @if (!$e->es_historica)
+                                <button wire:click="eliminar({{ $e->id }})"
+                                    title="Eliminar Registro Entrega"
+                                    class="inline-flex items-center justify-center
+                                    w-9 h-9 rounded-full
+                                    bg-red-100 text-red-700
+                                    hover:bg-red-200 hover:text-red-900
+                                    transition">
+                                    <i class="fas fa-trash-alt text-lg"></i>
+                                </button>
+                            @else
+                                <span class="text-gray-400 text-xs">
+                                    🔒 Automática
+                                </span>
+                            @endif
+
+                        </td>
 
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="py-10 text-center text-gray-500">
+                        <td colspan="7" class="py-10 text-center text-gray-500">
                             📦 No hay entregas registradas
                         </td>
                     </tr>

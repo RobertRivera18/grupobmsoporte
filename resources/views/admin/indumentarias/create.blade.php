@@ -4,26 +4,14 @@
     ['name' => 'Nuevo'],
 ]">
 
-<div class="max-w-3xl mx-auto bg-white shadow rounded-lg p-6">
+<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8">
 
-    <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+    <h2 class="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-2">
         👕 Registrar Nueva Indumentaria
     </h2>
 
     <form
-        x-data="{
-            tipo: '{{ old('tipo') }}',
-            talla: '{{ old('talla') }}',
-
-            tallasCamisa: ['XS','S','M','L','XL','XXL'],
-            tallasPantalon: ['28','34','36','38','40','42','44'],
-
-            get tallas() {
-                if (this.tipo === 'camisas') return this.tallasCamisa
-                if (this.tipo === 'pantalon') return this.tallasPantalon
-                return []
-            }
-        }"
+        x-data="formIndumentaria()"
         action="{{ route('admin.indumentarias.store') }}"
         method="POST"
         enctype="multipart/form-data"
@@ -31,154 +19,240 @@
     >
         @csrf
 
-        {{-- NOMBRE --}}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <input type="text"
-                   name="nombre"
-                   value="{{ old('nombre') }}"
-                   class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                   placeholder="Ej: Camisa, Pantalón, Botas">
-            @error('nombre')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
-            @enderror
+        {{-- ================= DATOS GENERALES ================= --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {{-- NOMBRE --}}
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    Nombre *
+                </label>
+                <input type="text" name="nombre"
+                       value="{{ old('nombre') }}"
+                       class="w-full rounded-xl border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+
+                @error('nombre')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- TIPO --}}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select
+                    name="tipo"
+                    x-model="tipo"
+                    @change="talla = ''"
+                    class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                >
+                    <option value="">Seleccione un tipo</option>
+                    <option value="camisas">Camisas</option>
+                    <option value="buzos">Buzos</option>
+                    <option value="pantalon">Pantalón</option>
+                    <option value="casco">Casco</option>
+                    <option value="gorra">Gorra</option>
+                    <option value="camisetas">Camiseta</option>
+                    <option value="chaleco">Chaleco</option>
+                    <option value="impermeable">Impermeable</option>
+                    <option value="bolso">Bolso</option>
+                    <option value="lonchera">Lonchera</option>
+                    <option value="medias">Medias</option>
+                    <option value="chompa">Chompa</option>
+                </select>
+
+                @error('tipo')
+                    <span class="text-red-500 text-sm">{{ $message }}</span>
+                @enderror
+            </div>
+
+            {{-- COLOR --}}
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    Color
+                </label>
+                <input type="text" name="color"
+                       value="{{ old('color') }}"
+                       class="w-full rounded-xl border-gray-300">
+            </div>
+
+            {{-- TALLA --}}
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    Talla
+                </label>
+
+                <select name="talla"
+                        x-model="talla"
+                        :disabled="tallas.length === 0"
+                        class="w-full rounded-xl border-gray-300">
+
+                    <option value="">Seleccione talla</option>
+
+                    <template x-for="opcion in tallas" :key="opcion">
+                        <option :value="opcion" x-text="opcion"></option>
+                    </template>
+                </select>
+            </div>
+
         </div>
 
-        {{-- TIPO --}}
+        {{-- ================= IMAGEN ================= --}}
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select
-                name="tipo"
-                x-model="tipo"
-                @change="talla = ''"
-                class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Seleccione un tipo</option>
-                <option value="camisas">Camisas</option>
-                <option value="pantalon">Pantalón</option>
-                <option value="casco">Casco</option>
-            </select>
-            @error('tipo')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
-            @enderror
-        </div>
-
-        {{-- COLOR --}}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <input type="text"
-                   name="color"
-                   value="{{ old('color') }}"
-                   class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                   placeholder="Ej: Rojo, Azul, Negro">
-            @error('color')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
-            @enderror
-        </div>
-
-        {{-- TALLA DINÁMICA --}}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Talla</label>
-
-            <select
-                name="talla"
-                x-model="talla"
-                :disabled="tallas.length === 0"
-                class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-            >
-                <option value="">Seleccione talla</option>
-
-                <template x-for="opcion in tallas" :key="opcion">
-                    <option :value="opcion" x-text="opcion"></option>
-                </template>
-            </select>
-
-            @error('talla')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
-            @enderror
-        </div>
-
-        {{-- 🖼️ IMAGEN --}}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Imagen de la indumentaria
+            <label class="block text-sm font-semibold text-gray-700 mb-3">
+                Imagen
             </label>
 
             <div class="flex items-center gap-6">
-                <div class="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
-                    <img id="preview-image"
-                         class="hidden w-full h-full object-cover rounded-lg">
-                    <span id="placeholder-text" class="text-xs text-gray-400">
+
+                {{-- Preview --}}
+                <div class="w-40 h-40 border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden bg-gray-50">
+
+                    <span x-show="!imageUrl" class="text-gray-400 text-sm">
                         Sin imagen
                     </span>
+
+                    <img x-show="imageUrl"
+                         :src="imageUrl"
+                         class="w-full h-full object-cover">
                 </div>
 
-                <input type="file"
-                       name="image"
-                       accept="image/*"
-                       onchange="previewImage(event)"
-                       class="block w-full text-sm text-gray-700
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100">
+                {{-- Input --}}
+                <div>
+                    <input type="file"
+                           name="image"
+                           @change="previewImage"
+                           class="block w-full text-sm text-gray-500">
+                    <p class="text-xs text-gray-400 mt-1">
+                        JPG, PNG o WEBP (máx. 2MB)
+                    </p>
+                </div>
+
             </div>
 
             @error('image')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
+                <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
             @enderror
         </div>
 
-        {{-- 📦 BODEGAS --}}
+        {{-- ================= INVENTARIO ================= --}}
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Bodegas donde existirá la indumentaria
-            </label>
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">
+                📦 Inventario por Bodega
+            </h3>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-4">
+
                 @foreach ($ubicaciones as $ubicacion)
-                    <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="checkbox"
-                               name="ubicaciones[]"
-                               value="{{ $ubicacion->id }}"
-                               {{ in_array($ubicacion->id, old('ubicaciones', [])) ? 'checked' : '' }}>
-                        <span>{{ $ubicacion->nombre }}</span>
-                    </label>
+                    <div class="border rounded-xl p-4">
+
+                        <div class="flex items-center gap-3 mb-3">
+                            <input type="checkbox"
+                                   value="{{ $ubicacion->id }}"
+                                   x-model="ubicacionesSeleccionadas"
+                                   name="ubicaciones[]"
+                                   class="rounded">
+
+                            <span class="font-medium">
+                                {{ $ubicacion->nombre }}
+                            </span>
+                        </div>
+
+                        @role('Admin')
+                        <div x-show="ubicacionesSeleccionadas.includes('{{ $ubicacion->id }}')"
+                             class="grid grid-cols-2 gap-4">
+
+                            <div>
+                                <label class="text-xs text-gray-500">
+                                    Stock Nuevo
+                                </label>
+                                <input type="number"
+                                       min="0"
+                                       name="stock_nuevo[{{ $ubicacion->id }}]"
+                                       value="0"
+                                       class="w-full rounded-xl border-gray-300">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-gray-500">
+                                    Stock Usado
+                                </label>
+                                <input type="number"
+                                       min="0"
+                                       name="stock_usado[{{ $ubicacion->id }}]"
+                                       value="0"
+                                       class="w-full rounded-xl border-gray-300">
+                            </div>
+
+                        </div>
+                        @endrole
+
+                    </div>
                 @endforeach
+
             </div>
 
             @error('ubicaciones')
-                <span class="text-red-500 text-sm">{{ $message }}</span>
+                <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
             @enderror
         </div>
 
-        {{-- BOTONES --}}
-        <div class="flex justify-end gap-3 pt-4">
+        {{-- ================= BOTONES ================= --}}
+        <div class="flex justify-end gap-4 pt-6 border-t">
+
             <a href="{{ route('admin.indumentarias.index') }}"
-               class="px-4 py-2 bg-gray-200 rounded-lg">
+               class="px-5 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl transition">
                 Cancelar
             </a>
 
             <button type="submit"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg">
-                Guardar
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow transition">
+                Guardar Indumentaria
             </button>
         </div>
 
     </form>
 </div>
 
+{{-- ================= ALPINE COMPONENT ================= --}}
 <script>
-function previewImage(event) {
-    const preview = document.getElementById('preview-image');
-    const placeholder = document.getElementById('placeholder-text');
-    const file = event.target.files[0];
+function formIndumentaria() {
+    return {
+        tipo: '{{ old('tipo') }}',
+        talla: '{{ old('talla') }}',
+        imageUrl: null,
+        ubicacionesSeleccionadas: @json(old('ubicaciones', [])),
 
-    if (file) {
-        preview.src = URL.createObjectURL(file);
-        preview.classList.remove('hidden');
-        placeholder.classList.add('hidden');
+        tallasCamisa: ['XS','S','M','L','XL','XXL','XXXL'],
+        tallasPantalon: ['28','34','36','38','40','42','44'],
+
+        get tallas() {
+            if (
+                this.tipo === 'camisas' ||
+                this.tipo === 'buzos' ||
+                this.tipo === 'camisetas' ||
+                this.tipo === 'impermeable' ||
+                this.tipo === 'chompa' ||
+                this.tipo === 'chaleco'
+            ) {
+                return this.tallasCamisa
+            }
+
+            if (this.tipo === 'pantalon') {
+                return [
+                    ...this.tallasCamisa,
+                    ...this.tallasPantalon
+                ]
+            }
+
+            return []
+        },
+
+        previewImage(event) {
+            const file = event.target.files[0]
+            if (file) {
+                this.imageUrl = URL.createObjectURL(file)
+            }
+        }
     }
 }
 </script>

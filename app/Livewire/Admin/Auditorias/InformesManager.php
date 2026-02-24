@@ -67,7 +67,7 @@ class InformesManager extends Component
     public function guardar()
     {
         $this->validate([
-            'resumen' => 'required|string|max:255',
+            'resumen' => 'required|string',
             'descripcion' => 'required|string',
             'noConformidades.*.norma_iso_id' => 'nullable|exists:normas_iso,id',
             'noConformidades.*.descripcion' => 'nullable|string',

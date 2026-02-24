@@ -111,7 +111,7 @@
                     'name' => 'Auditorias Internas',
                     'url' => route('admin.auditorias.index'),
                     'active' => request()->routeIs('admin.auditorias.*'),
-                    'icon' => 'fas fa-building',
+                    'icon' => 'fas fa-check-circle',
                     'can' => ['Auditorias'],
                 ],
                 [

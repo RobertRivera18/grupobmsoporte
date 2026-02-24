@@ -120,24 +120,43 @@ public function eliminar($entregaId)
             ->lockForUpdate()
             ->findOrFail($entregaId);
 
+        // 🚨 BLOQUEAR SI ES HISTÓRICA
+        if ($entrega->es_historica) {
+
+            DB::rollBack();
+
+            $this->dispatch('swal', [
+                'icon'  => 'warning',
+                'title' => 'No permitido',
+                'text'  => 'Las entregas históricas no pueden eliminarse'
+            ]);
+
+            return;
+        }
+
         foreach ($entrega->detalles as $detalle) {
 
-            // 🔍 Obtener inventario correcto
-            $inventario = $detalle->tipo_inventario === 'nuevo'
-                ? InventarioIndumentaria::where('indumentaria_id', $detalle->indumentaria_id)
-                    ->where('ubicacion_id', $entrega->ubicacion_id)
-                    ->lockForUpdate()
-                    ->first()
-                : InventarioIndumentariaUsada::where('indumentaria_id', $detalle->indumentaria_id)
+            // 🔍 Seleccionar inventario según tipo
+            if ($detalle->tipo_inventario === 'nuevo') {
+
+                $inventario = InventarioIndumentaria::where('indumentaria_id', $detalle->indumentaria_id)
                     ->where('ubicacion_id', $entrega->ubicacion_id)
                     ->lockForUpdate()
                     ->first();
 
-           
+            } else {
+
+                $inventario = InventarioIndumentariaUsada::where('indumentaria_id', $detalle->indumentaria_id)
+                    ->where('ubicacion_id', $entrega->ubicacion_id)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
             if ($inventario) {
                 $inventario->increment('stock', $detalle->cantidad);
             }
         }
+
         $entrega->detalles()->delete();
         $entrega->delete();
 
@@ -152,7 +171,6 @@ public function eliminar($entregaId)
     } catch (\Throwable $e) {
 
         DB::rollBack();
-
         report($e);
 
         $this->dispatch('swal', [
@@ -162,6 +180,7 @@ public function eliminar($entregaId)
         ]);
     }
 }
+
 
    public function render()
 {

@@ -1,8 +1,6 @@
 <x-admin-layout :breadcrumbs="[['name' => 'Home', 'url' => route('admin.dashboard')]]">
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2">
-
-
         <div class="bg-white shadow rounded-xl px-6 py-4 flex items-center">
             <img class="w-10 h-10 rounded-full object-cover" src="{{ Auth::user()->profile_photo_url }}"
                 alt="{{ Auth::user()->name }}">

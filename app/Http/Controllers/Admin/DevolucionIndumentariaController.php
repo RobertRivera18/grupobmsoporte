@@ -16,41 +16,40 @@ use Illuminate\Support\Facades\DB;
 
 class DevolucionIndumentariaController extends Controller
 {
- public function index()
-{
-    $user = auth()->user();
-    $quitoId = 2;
-    $indumentarias = Indumentaria::query()
-        ->when($user->hasRole('operador2'), function ($query) use ($quitoId) {
-            $query->where(function ($q) use ($quitoId) {
+    public function index()
+    {
+        $user = auth()->user();
+        $quitoId = 2;
+        $indumentarias = Indumentaria::query()
+            ->when($user->hasRole('operador2'), function ($query) use ($quitoId) {
+                $query->where(function ($q) use ($quitoId) {
 
-                // Inventario NUEVO
-                $q->whereHas('inventarios', function ($inv) use ($quitoId) {
-                    $inv->where('ubicacion_id', $quitoId)
-                        ->where('stock', '>', 0);
-                })
+                    // Inventario NUEVO
+                    $q->whereHas('inventarios', function ($inv) use ($quitoId) {
+                        $inv->where('ubicacion_id', $quitoId)
+                            ->where('stock', '>', 0);
+                    })
 
-                // O inventario USADO
-                ->orWhereHas('inventariosUsados', function ($inv) use ($quitoId) {
-                    $inv->where('ubicacion_id', $quitoId)
-                        ->where('stock', '>', 0);
+                        // O inventario USADO
+                        ->orWhereHas('inventariosUsados', function ($inv) use ($quitoId) {
+                            $inv->where('ubicacion_id', $quitoId)
+                                ->where('stock', '>', 0);
+                        });
                 });
+            })
+            ->orderBy('nombre')
+            ->get();
 
-            });
-        })
-        ->orderBy('nombre')
-        ->get();
+        $ubicaciones = Ubicacion::query()
+            ->when($user->hasRole('operador2'), fn($q) => $q->where('id', $quitoId))
+            ->orderBy('nombre')
+            ->get();
 
-    $ubicaciones = Ubicacion::query()
-        ->when($user->hasRole('operador2'), fn ($q) => $q->where('id', $quitoId))
-        ->orderBy('nombre')
-        ->get();
-
-    return view('admin.indumentarias.entregas.index', [
-        'ubicaciones'   => $ubicaciones,
-        'indumentarias' => $indumentarias,
-    ]);
-}
+        return view('admin.indumentarias.devoluciones.index', [
+            'ubicaciones'   => $ubicaciones,
+            'indumentarias' => $indumentarias,
+        ]);
+    }
 
 
 
@@ -71,134 +70,158 @@ class DevolucionIndumentariaController extends Controller
         return response()->json($data);
     }
     public function store(Request $request)
-{
-    DB::beginTransaction();
+    {
+        DB::beginTransaction();
 
-    try {
+        try {
 
-        /* ================= VALIDACIÓN ================= */
+            /* ================= VALIDACIÓN ================= */
 
-        $request->validate([
-            'user_id'                               => 'required|exists:users,id',
-            'ubicacion_id'                          => 'required|exists:ubicaciones,id',
-            'fecha_devolucion'                      => 'required|date',
-            'indumentarias'                         => 'required|array|min:1',
-            'indumentarias.*.id'                    => 'required|exists:indumentarias,id',
-            'indumentarias.*.cantidad'              => 'required|integer|min:1',
-            'indumentarias.*.cantidad_reutilizable' => 'required|integer|min:0',
-            'indumentarias.*.cantidad_baja'         => 'required|integer|min:0',
-        ]);
+            $request->validate([
+                'user_id'                               => 'required|exists:users,id',
+                'ubicacion_id'                          => 'required|exists:ubicaciones,id',
+                'fecha_devolucion'                      => 'required|date',
+                'indumentarias'                         => 'required|array|min:1',
+                'indumentarias.*.id'                    => 'required|exists:indumentarias,id',
+                'indumentarias.*.cantidad'              => 'required|integer|min:1',
+                'indumentarias.*.cantidad_reutilizable' => 'required|integer|min:0',
+                'indumentarias.*.cantidad_baja'         => 'required|integer|min:0',
+            ]);
 
-        /* ================= CABECERA DEVOLUCIÓN ================= */
+            /* =========================================================
+         * 1️⃣ DETERMINAR SI LA DEVOLUCIÓN SERÁ HISTÓRICA
+         * ========================================================= */
 
-        $devolucion = DevolucionIndumentaria::create([
-            'user_id'          => $request->user_id,
-            'ubicacion_id'     => $request->ubicacion_id,
-            'fecha_devolucion' => $request->fecha_devolucion,
-            'observacion'      => $request->observacion,
-            'es_historica'     => false,
-        ]);
+            $esHistorica = false;
 
-        /* ================= DETALLE ================= */
+            foreach ($request->indumentarias as $item) {
 
-        foreach ($request->indumentarias as $item) {
+                $totalEntregado = EntregaDetalleIndumentaria::where('indumentaria_id', $item['id'])
+                    ->whereHas('entrega', function ($q) use ($request) {
+                        $q->where('user_id', $request->user_id)
+                            ->where('es_historica', false);
+                    })
+                    ->sum('cantidad');
 
-            $total        = (int) $item['cantidad'];
-            $reutilizable = (int) $item['cantidad_reutilizable'];
-            $baja         = (int) $item['cantidad_baja'];
-
-            /* ----- VALIDAR SUMA ----- */
-            if (($reutilizable + $baja) !== $total) {
-                throw new \Exception(
-                    'La suma de reutilizable y baja debe ser igual al total devuelto'
-                );
+                if ($totalEntregado === 0) {
+                    $esHistorica = true;
+                    break; // con que una no tenga entrega real ya es histórica
+                }
             }
 
-            /* ----- TOTAL ENTREGADO REAL ----- */
-            $totalEntregado = EntregaDetalleIndumentaria::where('indumentaria_id', $item['id'])
-                ->whereHas('entrega', function ($q) use ($request) {
-                    $q->where('user_id', $request->user_id)
-                      ->where('es_historica', false);
-                })
-                ->sum('cantidad');
+            /* =========================================================
+         * 2️⃣ CREAR CABECERA DEVOLUCIÓN
+         * ========================================================= */
 
-            /* ================= NO EXISTE ENTREGA → CREAR HISTÓRICA ================= */
-            if ($totalEntregado === 0) {
+            $devolucion = DevolucionIndumentaria::create([
+                'user_id'          => $request->user_id,
+                'ubicacion_id'     => $request->ubicacion_id,
+                'fecha_devolucion' => $request->fecha_devolucion,
+                'observacion'      => $request->observacion,
+                'es_historica'     => $esHistorica,
+            ]);
 
-                $entregaHistorica = EntregaIndumentaria::create([
-                    'user_id'      => $request->user_id,
-                    'ubicacion_id' => $request->ubicacion_id,
-                    'fecha_entrega'=> $request->fecha_devolucion,
-                    'observacion'  => 'Entrega histórica generada automáticamente por devolución',
-                    'es_historica' => true,
-                ]);
+            /* =========================================================
+         * 3️⃣ PROCESAR DETALLES
+         * ========================================================= */
 
-                EntregaDetalleIndumentaria::create([
-                    'entrega_id'       => $entregaHistorica->id,
-                    'indumentaria_id'  => $item['id'],
-                    'cantidad'         => $total,
-                ]);
+            foreach ($request->indumentarias as $item) {
 
-                $totalEntregado = $total;
-            }
+                $total        = (int) $item['cantidad'];
+                $reutilizable = (int) $item['cantidad_reutilizable'];
+                $baja         = (int) $item['cantidad_baja'];
 
-            /* ----- TOTAL DEVUELTO ----- */
-            $totalDevuelto = DevolucionDetalleIndumentaria::where('indumentaria_id', $item['id'])
-                ->whereHas('devolucion', function ($q) use ($request) {
-                    $q->where('user_id', $request->user_id)
-                      ->where('es_historica', false);
-                })
-                ->sum('cantidad');
+                /* ----- VALIDAR SUMA ----- */
+                if (($reutilizable + $baja) !== $total) {
+                    throw new \Exception(
+                        'La suma de reutilizable y baja debe ser igual al total devuelto'
+                    );
+                }
 
-            $disponible = $totalEntregado - $totalDevuelto;
+                /* ----- TOTAL ENTREGADO REAL ----- */
+                $totalEntregado = EntregaDetalleIndumentaria::where('indumentaria_id', $item['id'])
+                    ->whereHas('entrega', function ($q) use ($request) {
+                        $q->where('user_id', $request->user_id)
+                            ->where('es_historica', false);
+                    })
+                    ->sum('cantidad');
 
-            if ($total > $disponible) {
-                throw new \Exception(
-                    'La cantidad devuelta supera lo entregado'
-                );
-            }
+                /* ================= NO EXISTE ENTREGA REAL → CREAR ENTREGA HISTÓRICA ================= */
+                if ($totalEntregado === 0) {
 
-            /* ----- INVENTARIO USADO ----- */
-            if ($reutilizable > 0) {
-                $inventario = InventarioIndumentariaUsada::firstOrCreate(
-                    [
+                    $entregaHistorica = EntregaIndumentaria::create([
+                        'user_id'       => $request->user_id,
+                        'ubicacion_id'  => $request->ubicacion_id,
+                        'fecha_entrega' => $request->fecha_devolucion,
+                        'observacion'   => 'Entrega histórica generada automáticamente por devolución',
+                        'es_historica'  => true,
+                    ]);
+
+                    EntregaDetalleIndumentaria::create([
+                        'entrega_id'      => $entregaHistorica->id,
                         'indumentaria_id' => $item['id'],
-                        'ubicacion_id'    => $request->ubicacion_id,
-                    ],
-                    ['stock' => 0]
-                );
+                        'cantidad'        => $total,
+                        'tipo_inventario' => 'usado',
+                    ]);
 
-                $inventario->increment('stock', $reutilizable);
+                    $totalEntregado = $total;
+                }
+
+                /* ----- TOTAL DEVUELTO (SOLO DEVOLUCIONES REALES) ----- */
+                $totalDevuelto = DevolucionDetalleIndumentaria::where('indumentaria_id', $item['id'])
+                    ->whereHas('devolucion', function ($q) use ($request) {
+                        $q->where('user_id', $request->user_id)
+                            ->where('es_historica', false);
+                    })
+                    ->sum('cantidad');
+
+                $disponible = $totalEntregado - $totalDevuelto;
+
+                if ($total > $disponible) {
+                    throw new \Exception(
+                        'La cantidad devuelta supera lo entregado'
+                    );
+                }
+
+                /* ----- INVENTARIO USADO ----- */
+                if ($reutilizable > 0) {
+                    $inventario = InventarioIndumentariaUsada::firstOrCreate(
+                        [
+                            'indumentaria_id' => $item['id'],
+                            'ubicacion_id'    => $request->ubicacion_id,
+                        ],
+                        ['stock' => 0]
+                    );
+
+                    $inventario->increment('stock', $reutilizable);
+                }
+
+                /* ----- GUARDAR DETALLE DEVOLUCIÓN ----- */
+                DevolucionDetalleIndumentaria::create([
+                    'devolucion_id'         => $devolucion->id,
+                    'indumentaria_id'       => $item['id'],
+                    'cantidad'              => $total,
+                    'cantidad_reutilizable' => $reutilizable,
+                    'cantidad_baja'         => $baja,
+                ]);
             }
 
-            /* ----- GUARDAR DETALLE DEVOLUCIÓN ----- */
-            DevolucionDetalleIndumentaria::create([
-                'devolucion_id'         => $devolucion->id,
-                'indumentaria_id'       => $item['id'],
-                'cantidad'              => $total,
-                'cantidad_reutilizable' => $reutilizable,
-                'cantidad_baja'         => $baja,
+            DB::commit();
+
+            return redirect()->back()->with('swal', [
+                'icon'  => 'success',
+                'title' => 'Devolución registrada',
+                'text'  => 'La devolución se registró correctamente'
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return redirect()->back()->withInput()->with('swal', [
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => $e->getMessage()
             ]);
         }
-
-        DB::commit();
-
-        return redirect()->back()->with('swal', [
-            'icon'  => 'success',
-            'title' => 'Devolución registrada',
-            'text'  => 'La devolución se registró correctamente'
-        ]);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return redirect()->back()->withInput()->with('swal', [
-            'icon'  => 'error',
-            'title' => 'Error',
-            'text'  => $e->getMessage()
-        ]);
     }
-}
-
 }
