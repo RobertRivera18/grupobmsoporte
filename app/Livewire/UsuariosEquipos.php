@@ -9,8 +9,9 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpWord\IOFactory;
-use Barryvdh\DomPDF\Facade\Pdf;
+use PhpOffice\PhpWord\TemplateProcessor;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 
 class UsuariosEquipos extends Component
@@ -23,97 +24,101 @@ class UsuariosEquipos extends Component
     public $upload = false;
     public $qr = false;
     public $userIdSeleccionado = null;
-    //Paginacion de Tabla Usuarios
     public $page;
-    //Paginacion de Tabla Equipos
     public $equipoPage;
     public $archivo;
+    public $modalFirma = false;
+    public $user_id_firma = null;
+    public $descargar = false;
+    public $userDescarga = null;
+    public $tieneFirma = false;
+    public $tieneComprobante = false;
 
 
     //Carga los equipos disponibles en el modal
     public function getEquiposDisponiblesProperty()
-{
-    return Equipos::query()
-        ->where([
-            ['datos', 1],
-            ['estado', 1],
-        ])
-        ->whereDoesntHave('users')
-        ->when($this->searchEquipos, function ($query) {
-            $search = '%' . $this->searchEquipos . '%';
-            $query->where(function ($q) use ($search) {
-                $q->where('nombre', 'like', $search)
-                    ->orWhere('serie', 'like', $search)
-                    ->orWhere('marca', 'like', $search)
-                    ->orWhere('modelo', 'like', $search);
-            });
-        })
-        ->paginate(10, ['*'], 'equipoPage');
-}
-
-
-   public function generar($userId)
-{
-    require_once app_path('Libraries/tbs_class.php');
-    require_once app_path('Libraries/tbs_plugin_opentbs.php');
-
-    $user = User::with('equipos')->find($userId);
-
-    if (!$user) {
-        $this->dispatch('error', message: 'Usuario no encontrado.');
-        return;
+    {
+        return Equipos::query()
+            ->where([
+                ['datos', 1],
+                ['estado', 1],
+            ])
+            ->whereDoesntHave('users')
+            ->when($this->searchEquipos, function ($query) {
+                $search = '%' . $this->searchEquipos . '%';
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', $search)
+                        ->orWhere('serie', 'like', $search)
+                        ->orWhere('marca', 'like', $search)
+                        ->orWhere('modelo', 'like', $search);
+                });
+            })
+            ->paginate(10, ['*'], 'equipoPage');
     }
 
-    $TBS = new \clsTinyButStrong;
-    $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
 
-    $templatePath = public_path('templates/acta_entregaequipo.docx');
-    $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
+    public function generar($userId)
+    {
+        require_once app_path('Libraries/tbs_class.php');
+        require_once app_path('Libraries/tbs_plugin_opentbs.php');
 
-    $nombreCompleto = $user->name;
-    $cedula = $user->cedula;
-    $equipos = [];
+        $user = User::with('equipos')->find($userId);
 
-    foreach ($user->equipos as $equipo) {
-        $equipos[] = [
-            'descripcion' => $equipo->nombre ?? 'N/A',
-            'marca' => $equipo->marca ?? 'N/A',
-            'modelo' => $equipo->modelo ?? 'N/A',
-            'serie' => $equipo->serie ?? 'N/A',
-        ];
+        if (!$user) {
+            $this->dispatch('error', message: 'Usuario no encontrado.');
+            return;
+        }
+
+        $TBS = new \clsTinyButStrong;
+        $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
+
+        $templatePath = public_path('templates/acta_entregaequipo.docx');
+        $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
+
+        $nombreCompleto = $user->name;
+        $cedula = $user->cedula;
+        $equipos = [];
+
+        foreach ($user->equipos as $equipo) {
+            $equipos[] = [
+                'descripcion' => $equipo->nombre ?? 'N/A',
+                'marca' => $equipo->marca ?? 'N/A',
+                'modelo' => $equipo->modelo ?? 'N/A',
+                'serie' => $equipo->serie ?? 'N/A',
+            ];
+        }
+
+        while (count($equipos) < 7) {
+            $equipos[] = [
+                'descripcion' => 'N/A',
+                'marca' => 'N/A',
+                'modelo' => 'N/A',
+                'serie' => 'N/A',
+            ];
+        }
+
+        $TBS->MergeField('usu.nombre', $nombreCompleto);
+        $TBS->MergeField('cedula', $cedula);
+        $TBS->MergeField('fecha', date('d/m/Y'));
+
+        foreach ($equipos as $index => $equipo) {
+            $TBS->MergeField("equipos.descripcion_$index", $equipo['descripcion']);
+            $TBS->MergeField("equipos.marca_$index", $equipo['marca']);
+            $TBS->MergeField("equipos.modelo_$index", $equipo['modelo']);
+            $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
+        }
+
+        $fileName = 'acta_entrega_equipo_' . str_replace(' ', '_', strtolower($nombreCompleto)) . '_' . date('Ymd') . '.docx';
+        $savePath = public_path('actas/entrega_equiposUsuarios/' . $fileName);
+
+        $TBS->Show(OPENTBS_FILE, $savePath);
+
+        // Abrir el archivo en nueva pestaña
+        return response()->file($savePath, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"'
+        ]);
     }
-
-    while (count($equipos) < 7) {
-        $equipos[] = [
-            'descripcion' => 'N/A',
-            'marca' => 'N/A',
-            'modelo' => 'N/A',
-            'serie' => 'N/A',
-        ];
-    }
-
-    $TBS->MergeField('usu.nombre', $nombreCompleto);
-    $TBS->MergeField('cedula', $cedula);
-    $TBS->MergeField('fecha', date('d/m/Y'));
-
-    foreach ($equipos as $index => $equipo) {
-        $TBS->MergeField("equipos.descripcion_$index", $equipo['descripcion']);
-        $TBS->MergeField("equipos.marca_$index", $equipo['marca']);
-        $TBS->MergeField("equipos.modelo_$index", $equipo['modelo']);
-        $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
-    }
-
-    $fileName = 'acta_entrega_equipo_' . str_replace(' ', '_', strtolower($nombreCompleto)) . '_' . date('Ymd') . '.docx';
-    $savePath = public_path('actas/entrega_equiposUsuarios/' . $fileName);
-
-    $TBS->Show(OPENTBS_FILE, $savePath);
-
-    // Abrir el archivo en nueva pestaña
-    return response()->file($savePath, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition' => 'inline; filename="' . $fileName . '"'
-    ]);
-}
 
 
 
@@ -127,8 +132,8 @@ class UsuariosEquipos extends Component
     public function guardarArchivo()
     {
         $this->validate([
-    'archivo' => 'required|mimes:pdf,doc,docx,png,jpg,jpeg|max:50240',
-]);
+            'archivo' => 'required|mimes:pdf,doc,docx,png,jpg,jpeg|max:50240',
+        ]);
 
 
         $user = User::find($this->userIdSeleccionado);
@@ -206,10 +211,7 @@ class UsuariosEquipos extends Component
         $user = User::find($userId);
 
         if ($user) {
-            // Eliminar relación
             $user->equipos()->detach($equipoId);
-
-            // Actualizar la última asignación activa
             $asignacion = HistorialAsignacion::where('equipo_id', $equipoId)
                 ->where('user_id', $userId)
                 ->whereNull('fecha_desasignacion')
@@ -232,20 +234,18 @@ class UsuariosEquipos extends Component
     public function descargarArchivo($userId)
     {
         $user = User::find($userId);
-
-        if (!$user || !$user->ruta_comprobante) {
-            $this->dispatch('error', message: 'Archivo no disponible.');
+        if (!$user || !$user->ruta_firma) {
+            $this->dispatch('error', message: 'No hay ningún acta o firma registrada para este usuario.');
             return;
         }
 
-        $rutaAbsoluta = storage_path('app/public/' . $user->ruta_comprobante);
-
+        $rutaAbsoluta = public_path($user->ruta_firma);
         if (!file_exists($rutaAbsoluta)) {
-            $this->dispatch('error', message: 'Archivo no encontrado en el servidor.');
+            $this->dispatch('error', message: 'El archivo firmado no existe en el servidor.');
             return;
         }
-
-        return response()->download($rutaAbsoluta);
+        $nombreDescarga = 'Acta_Entrega_' . Str::slug($user->name) . '.docx';
+        return response()->download($rutaAbsoluta, $nombreDescarga);
     }
 
 
@@ -260,57 +260,205 @@ class UsuariosEquipos extends Component
             $this->dispatch('error', message: 'Usuario no encontrado.');
             return;
         }
-
-
-        //Cambiar en produccion
-        $url_qr = "http://127.0.0.1:8000/equipoInfo/{$user->id}";
-
-
+        $url_qr = url("/equipoInfo/{$user->id}");
         $generator = new \barcode_generator();
         $svg = $generator->render_svg("qr", $url_qr, "");
-
-
-        $qrFileName = "qr_{$user->name}.svg";
+        $nombreSeguro = Str::slug($user->name);
+        $qrFileName = "qr_{$user->id}_{$nombreSeguro}.svg";
         $qrStoragePath = "qrcodes/{$qrFileName}";
-        $qrPublicPath = "qrcodes/{$qrFileName}";
-
-
+        if ($user->qr_codigo && Storage::exists($user->qr_codigo) && $user->qr_codigo !== $qrStoragePath) {
+            Storage::delete($user->qr_codigo);
+        }
         if (!Storage::exists('qrcodes')) {
             Storage::makeDirectory('qrcodes');
         }
-
-
         Storage::put($qrStoragePath, $svg);
-
-        $user->qr_codigo = $qrPublicPath;
+        $user->qr_codigo = $qrStoragePath;
         $user->save();
-
-        // Disparar notificación al frontend
-        $this->dispatch('swal', [
-            'icon' => 'success',
-            'title' => 'Código QR generado',
-            'text' => 'El QR fue generado correctamente.',
-        ]);
     }
-
 
     public function ver_qr($userId)
     {
-
-
-        // Carga fresca del usuario desde la base de datos
         $this->userIdSeleccionado = User::find($userId);
-
         if ($this->userIdSeleccionado && $this->userIdSeleccionado->qr_codigo) {
             $this->qr = true;
         } else {
-            $this->qr = true; 
+            $this->qr = true;
             session()->flash('message', 'Este usuario no tiene código QR.');
         }
     }
 
+    public function abrirModalFirma($userId)
+    {
+        $this->user_id_firma = $userId;
+        $this->modalFirma = true;
+    }
 
-    // Renderizar el componente
+
+    public function abrirModalDescargas($userId)
+    {
+        $user = User::find($userId);
+
+        if (!$user) {
+            $this->dispatch('error', message: 'Usuario no encontrado.');
+            return;
+        }
+
+        $this->userDescarga = $user;
+
+        $this->tieneFirma = !empty($user->ruta_firma)
+            && file_exists(public_path($user->ruta_firma));
+
+        $this->tieneComprobante = !empty($user->ruta_comprobante)
+            && file_exists(storage_path('app/public/' . $user->ruta_comprobante));
+
+        if (!$this->tieneFirma && !$this->tieneComprobante) {
+            $this->dispatch('error', message: 'No existen archivos para descargar.');
+            return;
+        }
+
+        $this->descargar = true;
+    }
+
+    public function descargarFirma()
+{
+    if (!$this->userDescarga) {
+        return;
+    }
+
+    $ruta = public_path($this->userDescarga->ruta_firma);
+
+    if (!file_exists($ruta)) {
+        $this->dispatch('error', message: 'El acta firmada no existe.');
+        return;
+    }
+
+    return response()->download(
+        $ruta,
+        'Acta_Entrega_' . Str::slug($this->userDescarga->name) . '.docx'
+    );
+}
+
+public function descargarComprobante()
+{
+    if (!$this->userDescarga) {
+        return;
+    }
+
+    $ruta = storage_path('app/public/' . $this->userDescarga->ruta_comprobante);
+
+    if (!file_exists($ruta)) {
+        $this->dispatch('error', message: 'El comprobante no existe.');
+        return;
+    }
+
+    return response()->download($ruta);
+}
+
+    public function guardarYDescargarFirmado($dataUrl)
+    {
+        if (!$this->user_id_firma) {
+            $this->dispatch('error', message: 'No se ha seleccionado un usuario.');
+            return;
+        }
+
+        $imageParts = explode(";base64,", $dataUrl);
+        if (count($imageParts) < 2) {
+            $this->dispatch('error', message: 'Formato de firma inválido.');
+            return;
+        }
+
+        $imageBase64 = base64_decode($imageParts[1]);
+        $tempDir = storage_path('app/temp_firmas');
+        if (!File::exists($tempDir)) {
+            File::makeDirectory($tempDir, 0755, true);
+        }
+
+        $tempImagePath = $tempDir . '/firma_' . $this->user_id_firma . '_' . time() . '.png';
+        File::put($tempImagePath, $imageBase64);
+
+        $user = User::with('equipos')->find($this->user_id_firma);
+        if (!$user) {
+            $this->dispatch('error', message: 'Usuario no encontrado.');
+            return;
+        }
+
+        $templatePath = public_path('templates/acta_entregaequipo_nuevo.docx');
+        if (!File::exists($templatePath)) {
+            $this->dispatch('error', message: 'Plantilla no encontrada.');
+            return;
+        }
+
+        $templateProcessor = new TemplateProcessor($templatePath);
+        $templateProcessor->setValue('nombre', $user->name);
+        $templateProcessor->setValue('cedula', $user->cedula ?? 'N/A');
+        $templateProcessor->setValue('fecha', date('d/m/Y'));
+        $templateProcessor->setImageValue('firma', [
+            'path'   => $tempImagePath,
+            'width'  => 200,
+            'height' => 60,
+            'ratio'  => true
+        ]);
+
+        // 1. Mapear los equipos dinámicamente
+        $equipos = $user->equipos->values()->map(fn($equipo, $index) => [
+            'numero'      => $index + 1,
+            'descripcion' => $equipo->nombre ?? 'N/A',
+            'marca'       => $equipo->marca ?? 'N/A',
+            'modelo'      => $equipo->modelo ?? 'N/A',
+            'serie'       => $equipo->serie ?? 'N/A',
+        ])->toArray();
+
+        // En caso de que el usuario no tenga equipos asignados, dejamos 1 fila por defecto
+        if (count($equipos) === 0) {
+            $equipos[] = [
+                'numero'      => 1,
+                'descripcion' => 'N/A',
+                'marca'       => 'N/A',
+                'modelo'      => 'N/A',
+                'serie'       => 'N/A',
+            ];
+        }
+
+        // 2. Clonar la fila en la plantilla Word usando la variable 'descripcion'
+        $templateProcessor->cloneRow('descripcion', count($equipos));
+
+        // 3. Reemplazar los valores dinámicamente usando la sintaxis ${variable#indice}
+        foreach ($equipos as $index => $equipo) {
+            $row = $index + 1;
+            $templateProcessor->setValue("\${numero#$row}", $equipo['numero']);
+            $templateProcessor->setValue("\${descripcion#$row}", $equipo['descripcion']);
+            $templateProcessor->setValue("\${marca#$row}", $equipo['marca']);
+            $templateProcessor->setValue("\${modelo#$row}", $equipo['modelo']);
+            $templateProcessor->setValue("\${serie#$row}", $equipo['serie']);
+        }
+
+        // 4. Guardar archivo final
+        $fileName = 'acta_firmada_' . Str::slug($user->name) . '_' . date('Ymd_His') . '.docx';
+        $relativePath = 'actas/entrega_equiposUsuarios/' . $fileName;
+        $saveDir = public_path('actas/entrega_equiposUsuarios');
+
+        if (!File::exists($saveDir)) {
+            File::makeDirectory($saveDir, 0755, true);
+        }
+
+        $savePath = $saveDir . '/' . $fileName;
+        $templateProcessor->saveAs($savePath);
+
+        $user->ruta_firma = $relativePath;
+        $user->save();
+
+        if (File::exists($tempImagePath)) {
+            File::delete($tempImagePath);
+        }
+
+        $this->modalFirma = false;
+        $this->user_id_firma = null;
+
+        return response()->download($savePath, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
+    }
     public function render()
     {
         $users = User::where('name', 'like', '%' . $this->search . '%')

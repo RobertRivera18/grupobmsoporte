@@ -1,7 +1,6 @@
 <div>
     <div class="max-w-9xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
 
-        <!-- Botón de reporte -->
         <div class="flex items-center justify-end px-2 sm:px-4 py-2 mb-4">
             <button wire:click="generarExcel"
                 class="flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 font-medium py-2 px-3 sm:px-4 rounded-lg shadow-sm transition duration-200 text-sm sm:text-base w-full sm:w-auto justify-center">
@@ -45,8 +44,10 @@
                                             <div class="text-sm font-basic text-gray-900">
                                                 @if ($cuadrilla->cua_ciudad == 1)
                                                     Guayaquil
-                                                @else
+                                                @elseif ($cuadrilla->cua_ciudad == 2)
                                                     Quito
+                                                @else
+                                                    Sin ciudad
                                                 @endif
                                             </div>
                                         </div>
@@ -138,22 +139,10 @@
                                         @endrole
 
                                         <div>
-                                            <label class="inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" class="sr-only peer"
-                                                    wire:change="actualizarRecarga({{ $cuadrilla->id }}, $event.target.checked)"
-                                                    @checked($cuadrilla->recargas == 1)>
-                                                <div
-                                                    class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 
-                                                           peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 
-                                                           after:content-[''] after:absolute after:top-[2px] after:start-[2px] 
-                                                           after:bg-white after:border-gray-300 after:border after:rounded-full 
-                                                           after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full 
-                                                           peer-checked:after:border-white">
-                                                </div>
-                                                <span class="ms-3 text-xs font-medium text-gray-900">
-                                                    Recarga Realizada
-                                                </span>
-                                            </label>
+                                            @include('livewire.partials.recarga-toggle', [
+                                                'cuadrilla' => $cuadrilla,
+                                                'label' => 'Recarga Realizada',
+                                            ])
                                         </div>
                                     </div>
                                 </td>
@@ -175,8 +164,10 @@
                             <p class="text-indigo-100 text-xs mt-1">
                                 @if ($cuadrilla->cua_ciudad == 1)
                                     📍 Guayaquil
-                                @else
+                                @elseif ($cuadrilla->cua_ciudad == 2)
                                     📍 Quito
+                                @else
+                                    📍 Sin ciudad
                                 @endif
                             </p>
                         </div>
@@ -292,22 +283,11 @@
                                 @endrole
 
                                 <div class="flex justify-center">
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer"
-                                            wire:change="actualizarRecarga({{ $cuadrilla->id }}, $event.target.checked)"
-                                            @checked($cuadrilla->recargas == 1)>
-                                        <div
-                                            class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 
-                                               peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 
-                                               after:content-[''] after:absolute after:top-[2px] after:start-[2px] 
-                                               after:bg-white after:border-gray-300 after:border after:rounded-full 
-                                               after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full 
-                                               peer-checked:after:border-white">
-                                        </div>
-                                        <span class="ms-3 text-sm font-medium text-gray-900">
-                                            Recarga
-                                        </span>
-                                    </label>
+                                    @include('livewire.partials.recarga-toggle', [
+                                        'cuadrilla' => $cuadrilla,
+                                        'label' => 'Recarga',
+                                        'labelClass' => 'ms-3 text-sm font-medium text-gray-900',
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -414,7 +394,7 @@
                 @endforelse
             </div>
 
-            <!-- Paginación -->
+            
             <div class="mt-4 px-2 sm:px-6">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <span class="text-xs text-gray-500 text-center sm:text-left">
@@ -500,7 +480,7 @@
                 </table>
             </div>
 
-            <!-- Vista tipo tarjeta para móviles y tablets pequeñas -->
+           
             <div class="md:hidden space-y-3">
                 @forelse ($this->equiposDisponibles as $equipo)
                     <div class="bg-white border rounded-lg shadow-sm p-3"
@@ -527,7 +507,7 @@
                 @endforelse
             </div>
 
-            <!-- Paginación -->
+     
             <div class="mt-4 px-2 sm:px-6">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <span class="text-xs text-gray-500 text-center sm:text-left">
@@ -620,14 +600,13 @@
                 </div>
             </x-slot>
 
-            {{-- 🔹 CONTENIDO --}}
             <x-slot name="content">
 
                 {{-- FIRMA --}}
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            ✍️ Firma (Responsable / Receptor)
+                            Firma (Responsable / Receptor)
                         </h3>
                         <span class="text-xs text-gray-400">
                             Usa mouse o pantalla táctil
@@ -720,7 +699,7 @@
 
             </x-slot>
 
-            {{-- 🔹 FOOTER --}}
+        
             <x-slot name="footer">
                 <div class="flex justify-end">
                     <button wire:click="cerrarModal"
@@ -755,10 +734,7 @@
                 ctx.lineWidth = 2;
                 ctx.lineCap = 'round';
 
-                // CLAVE PARA TOUCH
                 canvas.style.touchAction = 'none';
-
-                // POINTER EVENTS (funciona para mouse + touch)
                 canvas.addEventListener('pointerdown', iniciar);
                 canvas.addEventListener('pointermove', mover);
                 canvas.addEventListener('pointerup', detener);
@@ -793,7 +769,6 @@
                 dibujando = false;
             }
 
-
             function enviarFirma(tipo) {
                 if (!canvas) return;
 
@@ -815,7 +790,5 @@
             }
         </script>
     @endpush
-
-
 
 </div>

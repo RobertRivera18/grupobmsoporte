@@ -6,6 +6,7 @@ use App\Models\ActaFirmada;
 use App\Models\Cuadrilla;
 use App\Models\Equipos;
 use App\Models\User;
+use App\Services\ExcelRecargasService;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
@@ -14,7 +15,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
-use Novay\Word\Facades\Word;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 class EquiposCuadrillas extends Component
@@ -33,14 +33,13 @@ class EquiposCuadrillas extends Component
     public $firmaBase64 = null;
     public array $firmas = [];
 
-
+    // Cuantas filas mínimas debe tener la tabla de equipos en el acta de descargo
+    private const MIN_FILAS_ACTA_DESCARGO = 7;
 
     public function firmaCapturada(string $tipo): bool
     {
         return isset($this->firmas[$tipo]);
     }
-
-
 
     #[On('firmaCapturada')]
     public function setFirma($tipo, $firma)
@@ -53,61 +52,49 @@ class EquiposCuadrillas extends Component
         if (!$this->firmaBase64 || !str_starts_with($this->firmaBase64, 'data:image')) {
             abort(400, 'No hay firma capturada');
         }
+        $ruta = $this->guardarFirmaComoArchivo($this->firmaBase64);
 
-        return $this->guardarYDescargarFirma($this->firmaBase64);
-    }
-
-
-    private function guardarYDescargarFirma($firmaBase64)
-    {
-        $firma = preg_replace('#^data:image/\w+;base64,#i', '', $firmaBase64);
-        $imagen = base64_decode($firma);
-
-        if ($imagen === false) {
+        if (!$ruta) {
             abort(400, 'Base64 inválido');
         }
-
-        $nombre = 'firma_' . now()->timestamp . '.png';
-        $ruta = storage_path('app/tmp/' . $nombre);
-
-        if (!is_dir(dirname($ruta))) {
-            mkdir(dirname($ruta), 0755, true);
-        }
-
-        file_put_contents($ruta, $imagen);
-
         Log::info('Firma guardada', ['ruta' => $ruta]);
-
         return response()->download($ruta)->deleteFileAfterSend(true);
     }
 
-    private function guardarFirmaTemporal(string $firmaBase64): ?string
+
+    private function guardarFirmaComoArchivo(?string $firmaBase64, string $prefijo = 'firma_'): ?string
     {
         if (!$firmaBase64) {
             return null;
         }
 
         $firma = preg_replace('#^data:image/\w+;base64,#i', '', $firmaBase64);
-        $imagen = base64_decode($firma);
+        $imagen = base64_decode($firma, true);
 
         if ($imagen === false) {
             return null;
         }
 
-        $nombre = 'firma_' . uniqid() . '.png';
-        $ruta = storage_path('app/tmp/' . $nombre);
+        $carpeta = storage_path('app/tmp');
 
-        if (!is_dir(dirname($ruta))) {
-            mkdir(dirname($ruta), 0755, true);
+        if (!is_dir($carpeta)) {
+            mkdir($carpeta, 0755, true);
         }
 
+        $ruta = $carpeta . '/' . $prefijo . uniqid('', true) . '.png';
         file_put_contents($ruta, $imagen);
 
         return $ruta;
     }
 
-
-
+    private function nombreCiudad(?int $codigo): string
+    {
+        return match ($codigo) {
+            1 => 'Guayaquil',
+            2 => 'Quito',
+            default => 'Sin ciudad',
+        };
+    }
 
     // Listeners para actualizar el componente
     protected $listeners = [
@@ -125,22 +112,23 @@ class EquiposCuadrillas extends Component
     }
 
 
-    public function getColaboradoresDisponiblesProperty()
-    {
-        return User::query()
-            ->select('id', 'name', 'cedula')
-            ->whereDoesntHave('cuadrillas')
-            ->when($this->searchColaboradores, function ($query) {
-                $search = '%' . $this->searchColaboradores . '%';
+    //Solo filtra Usuarios Activos
+ public function getColaboradoresDisponiblesProperty()
+{
+    return User::query()
+        ->select('id', 'name', 'cedula')
+        ->where('estado', 1)
+        ->whereDoesntHave('cuadrillas')
+        ->when($this->searchColaboradores, function ($query) {
+            $search = '%' . $this->searchColaboradores . '%';
 
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', $search)
-                        ->orWhere('cedula', 'like', $search);
-                });
-            })
-            ->paginate(10, ['*'], 'UserPage');
-    }
-
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', $search)
+                    ->orWhere('cedula', 'like', $search);
+            });
+        })
+        ->paginate(10, ['*'], 'UserPage');
+}
 
     // Resetear la página al limpiar la búsqueda
     public function limpiar_page()
@@ -148,7 +136,7 @@ class EquiposCuadrillas extends Component
         $this->resetPage();
     }
 
-    //Metodo para abrir modal de colaboradores
+    // Método para abrir modal de colaboradores
     public function agregarColaborador($cuaId)
     {
         $this->cuaIdSeleccionado = $cuaId;
@@ -191,13 +179,12 @@ class EquiposCuadrillas extends Component
         $this->upload = true;
     }
 
-    //Abrir modal para seleccionar tipo de acta
+    // Abrir modal para seleccionar tipo de acta
     public function abrirModalOpciones($cuaId)
     {
         $this->cuaIdSeleccionado = $cuaId;
-        $this->opciones = true; // muestra el modal
+        $this->opciones = true;
     }
-
 
     public function guardarArchivo()
     {
@@ -228,27 +215,24 @@ class EquiposCuadrillas extends Component
         ]);
     }
 
-    //Descargar archivo comprobante
+    // Descargar archivo comprobante
     public function descargarArchivo($cuaId)
     {
         $cuadrilla = Cuadrilla::find($cuaId);
-
         if (!$cuadrilla || !$cuadrilla->ruta_comprobante) {
             $this->dispatch('error', message: 'Archivo no disponible.');
             return;
         }
 
         $rutaAbsoluta = storage_path('app/public/' . $cuadrilla->ruta_comprobante);
-
         if (!file_exists($rutaAbsoluta)) {
             $this->dispatch('error', message: 'Archivo no encontrado en el servidor.');
             return;
         }
-
         return response()->download($rutaAbsoluta);
     }
 
-    //Eliminar un Colaborador de una cuadrilla
+    // Eliminar un Colaborador de una cuadrilla
     public function eliminarColaborador($userId, $cuaId)
     {
         $user = User::find($userId);
@@ -266,7 +250,6 @@ class EquiposCuadrillas extends Component
             $this->dispatch('error', message: 'Colaborador o cuadrilla no encontrados.');
         }
     }
-
 
     public function getEquiposDisponiblesProperty()
     {
@@ -288,7 +271,6 @@ class EquiposCuadrillas extends Component
             ->paginate(10, ['*'], 'equipoPage');
     }
 
-
     public function agregarEquipo($cuaId)
     {
         $this->cuaIdSeleccionado = $cuaId;
@@ -306,18 +288,20 @@ class EquiposCuadrillas extends Component
         }
 
         $cuadrilla = Cuadrilla::find($this->cuaIdSeleccionado);
-        if ($cuadrilla) {
-            $cuadrilla->equipos()->attach($equipoId);
 
-            $this->dispatch('swal', [
-                'icon' => 'success',
-                'title' => 'Asignado',
-                'text' => 'Equipo asignado correctamente.',
-            ]);
-            $this->resetPage('equipoPage');
-        } else {
+        if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+            return;
         }
+
+        $cuadrilla->equipos()->attach($equipoId);
+
+        $this->dispatch('swal', [
+            'icon' => 'success',
+            'title' => 'Asignado',
+            'text' => 'Equipo asignado correctamente.',
+        ]);
+        $this->resetPage('equipoPage');
     }
 
     // Eliminar el equipo asignado a una cuadrilla
@@ -325,113 +309,31 @@ class EquiposCuadrillas extends Component
     {
         $cuadrilla = Cuadrilla::find($cuaId);
 
-        if ($cuadrilla) {
-            $cuadrilla->equipos()->detach($equipoId);
-
-            $this->dispatch('swal', [
-                'icon' => 'success',
-                'title' => 'Eliminado',
-                'text' => 'Equipo eliminado correctamente.',
-            ]);
-        } else {
+        if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+            return;
         }
+
+        $cuadrilla->equipos()->detach($equipoId);
+
+        $this->dispatch('swal', [
+            'icon' => 'success',
+            'title' => 'Eliminado',
+            'text' => 'Equipo eliminado correctamente.',
+        ]);
     }
 
-    public function generarExcel()
-    {
+    public function generarExcel(ExcelRecargasService $service) {
         try {
-            $cuadrillas = Cuadrilla::with(['equipos', 'users'])
-                ->whereHas('equipos', function ($query) {
-                    $query->where('datos', 2);
-                })
-                ->get();
 
-            $inputFileName = public_path('templates/formatoListadoRecargas.xlsx');
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputFileName);
-            $sheet = $spreadsheet->getActiveSheet();
+            return $service->generar();
+        } catch (\Throwable $e) {
+            report($e);
 
-            $fechaInicio = now();
-            $fechaInicio->setDate($fechaInicio->format('Y'), $fechaInicio->format('m'), 23);
-            $fechaFin = clone $fechaInicio;
-            $fechaFin->modify('+1 month');
-
-            $encabezado = "LISTADO DE LINEAS DE RECARGAS MENSUALES PERIODO " . $fechaInicio->format('d/m/Y') . " AL " . $fechaFin->format('d/m/Y');
-            $sheet->mergeCells('C4:I7');
-            $sheet->setCellValue('C4', $encabezado);
-            $sheet->getStyle('C4')->getFont()->setBold(true);
-            $sheet->getStyle('C4')
-                ->getAlignment()
-                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
-                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
-
-            $fila = 9;
-            $contador = 1;
-            $cantidadCuadrillas = 0;
-            foreach ($cuadrillas as $cuadrilla) {
-                $colaboradores = $cuadrilla->users;
-                $inicioFila = $fila;
-
-                if ($colaboradores->isEmpty()) {
-                    $sheet->setCellValue('C' . $fila, $contador);
-                    $ciudadNombre = $cuadrilla->cua_ciudad == 1 ? 'Guayaquil' : ($cuadrilla->cua_ciudad == 2 ? 'Quito' : 'Sin ciudad');
-                    $sheet->setCellValue('D' . $fila, $ciudadNombre);
-                    $sheet->setCellValue('E' . $fila, $cuadrilla->equipos->first()->serie ?? 'Sin serie');
-                    $sheet->setCellValue('F' . $fila, $cuadrilla->cua_nombre);
-                    $sheet->setCellValue('G' . $fila, 'Sin colaboradores');
-                    $sheet->setCellValue('H' . $fila, 10.50);
-                    $sheet->setCellValue('I' . $fila, $cuadrilla->recargas == 1 ? 'Recarga Realizada' : 'Recarga No Realizada');
-                    $fila++;
-                } else {
-                    foreach ($colaboradores as $colaborador) {
-                        $sheet->setCellValue('C' . $fila, $contador);
-                        $ciudadNombre = $cuadrilla->cua_ciudad == 1 ? 'Guayaquil' : ($cuadrilla->cua_ciudad == 2 ? 'Quito' : 'Sin ciudad');
-                        $sheet->setCellValue('D' . $fila, $ciudadNombre);
-                        $sheet->setCellValue('E' . $fila, $cuadrilla->equipos->first()->serie ?? 'Sin serie');
-                        $sheet->setCellValue('F' . $fila, $cuadrilla->cua_nombre);
-                        $sheet->setCellValue('G' . $fila, $colaborador->name);
-                        $sheet->setCellValue('H' . $fila, 10.50);
-                        $sheet->setCellValue('I' . $fila, $cuadrilla->recargas == 1 ? 'Recarga Realizada' : 'Recarga No Realizada');
-                        $fila++;
-                    }
-
-                    $finFila = $fila - 1;
-                    if ($inicioFila < $finFila) {
-                        $sheet->mergeCells("C{$inicioFila}:C{$finFila}");
-                        $sheet->mergeCells("D{$inicioFila}:D{$finFila}");
-                        $sheet->mergeCells("E{$inicioFila}:E{$finFila}");
-                        $sheet->mergeCells("F{$inicioFila}:F{$finFila}");
-                        $sheet->mergeCells("H{$inicioFila}:H{$finFila}");
-                        $sheet->mergeCells("I{$inicioFila}:I{$finFila}");
-                    }
-                }
-
-                $contador++;
-                $cantidadCuadrillas++;
-            }
-
-            $totalRecargas = $cantidadCuadrillas * 10.50;
-            $sheet->setCellValue('H59', $totalRecargas);
-
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $fileName = 'reporteRecargas_' . now()->format('Y-m-d') . '.xlsx';
-            $tempPath = storage_path('app/public/temp');
-
-            if (!file_exists($tempPath)) {
-                mkdir($tempPath, 0755, true);
-            }
-
-            $filePath = $tempPath . '/' . $fileName;
-            $writer->save($filePath);
-
-            return response()->download($filePath, $fileName, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ])->deleteFileAfterSend(true);
-        } catch (\Exception $e) {
             $this->dispatch('swal', [
                 'icon' => 'error',
                 'title' => 'Error',
-                'text' => 'Error al generar Excel: ' . $e->getMessage(),
+                'text' => 'No fue posible generar el Excel.'
             ]);
         }
     }
@@ -446,78 +348,16 @@ class EquiposCuadrillas extends Component
         }
     }
 
-    // public function generar($cuaId)
-    // {
-    //     require_once app_path('Libraries/tbs_class.php');
-    //     require_once app_path('Libraries/tbs_plugin_opentbs.php');
-
-    //     $cuadrilla = Cuadrilla::with([
-    //         'users',
-    //         'equipos' => function ($query) {
-    //             $query->where('tipo_equipo_id', 4);
-    //         }
-    //     ])->find($cuaId);
-    //     if (!$cuadrilla) {
-    //         $this->dispatch('error', message: 'Cuadrilla no encontrada.');
-    //         return;
-    //     }
-
-
-    //     $TBS = new \clsTinyButStrong;
-    //     $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
-
-    //     $templatePath = public_path('templates/acta_entregachip.docx');
-
-    //     if (!file_exists($templatePath)) {
-    //         $this->dispatch('error', message: 'Plantilla no encontrada.');
-    //         return;
-    //     }
-
-    //     $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
-
-    //     $colaboradores = $cuadrilla->users->take(2);
-    //     $nombres = $colaboradores->pluck('name')->toArray();
-    //     $cedulas = $colaboradores->pluck('cedula')->toArray();
-
-    //     $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? 'N/A');
-    //     $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
-    //     $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? 'N/A');
-    //     $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
-    //     $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre);
-
-    //     $equipos = $cuadrilla->equipos->map(function ($equipo) {
-    //         return "{$equipo->serie}";
-    //     })->implode("\n");
-
-    //     $TBS->MergeField('cuadrilla.equipos', $equipos ?: 'Ningún equipo asignado');
-    //     $TBS->MergeField('fecha', date('d/M/Y'));
-
-    //     $fileName = "acta_chip_" . date('Y-m-d') . ".docx";
-    //     $savePath = public_path("actas/chipsCuadrillas/" . $fileName);
-
-    //     $TBS->Show(OPENTBS_FILE, $savePath);
-
-    //     if (file_exists($savePath)) {
-    //         return response()->download($savePath)->deleteFileAfterSend();
-    //     } else {
-    //         $this->dispatch('error', message: 'El archivo no se generó correctamente.');
-    //         return;
-    //     }
-    // }
-
     public function generar($cuaId)
     {
-        if (
-            empty($this->firmas['responsable']) ||
-            empty($this->firmas['receptor'])
-        ) {
+        if (empty($this->firmas['responsable']) || empty($this->firmas['receptor'])) {
             $this->dispatch('error', message: 'Debe capturar ambas firmas antes de generar el acta');
             return;
         }
 
         $cuadrilla = Cuadrilla::with([
             'users',
-            'equipos' => fn($q) => $q->where('tipo_equipo_id', 4)
+            'equipos' => fn($q) => $q->where('tipo_equipo_id', 4),
         ])->find($cuaId);
 
         if (!$cuadrilla) {
@@ -525,18 +365,16 @@ class EquiposCuadrillas extends Component
             return;
         }
 
-        $templatePath = public_path('templates/acta_entregachip.docx');
+        $templatePath = public_path('templates/acta_entregachip_nueva.docx');
         if (!file_exists($templatePath)) {
             $this->dispatch('error', message: 'Plantilla no encontrada.');
             return;
         }
 
         $colaboradores = $cuadrilla->users->take(2)->values();
-        $equipos = $cuadrilla->equipos
-            ->pluck('serie')
-            ->implode("\n") ?: 'Ningún equipo asignado';
-        $firmaResponsablePath = $this->guardarFirmaTemporal($this->firmas['responsable']);
-        $firmaReceptorPath    = $this->guardarFirmaTemporal($this->firmas['receptor']);
+        $equipos = $cuadrilla->equipos->pluck('serie')->implode("\n") ?: 'Ningún equipo asignado';
+        $firmaResponsablePath = $this->guardarFirmaComoArchivo($this->firmas['responsable']);
+        $firmaReceptorPath = $this->guardarFirmaComoArchivo($this->firmas['receptor']);
 
         if (
             !$firmaResponsablePath || !file_exists($firmaResponsablePath) ||
@@ -545,10 +383,11 @@ class EquiposCuadrillas extends Component
             $this->dispatch('error', message: 'No se pudo procesar una de las firmas');
             return;
         }
+
         $fileName = 'acta_chip_' . $cuadrilla->cua_nombre . '_' . now()->format('Ymd_His') . '.docx';
         $savePath = public_path('actas/chips/' . $fileName);
 
-        $template = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+        $template = new TemplateProcessor($templatePath);
         $template->setValue('fecha', now()->format('d/m/Y'));
         $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
         $template->setValue('colaborador1', $colaboradores[0]->name ?? 'N/A');
@@ -557,30 +396,31 @@ class EquiposCuadrillas extends Component
         $template->setValue('cedula2', $colaboradores[1]->cedula ?? 'N/A');
         $template->setValue('equipos', $equipos);
         $template->setImageValue('firma_responsable', [
-            'path'   => $firmaResponsablePath,
-            'width'  => 130,
+            'path' => $firmaResponsablePath,
+            'width' => 130,
             'height' => 70,
-            'ratio'  => true,
+            'ratio' => true,
         ]);
-
         $template->setImageValue('firma_receptor', [
-            'path'   => $firmaReceptorPath,
-            'width'  => 130,
+            'path' => $firmaReceptorPath,
+            'width' => 130,
             'height' => 70,
-            'ratio'  => true,
+            'ratio' => true,
         ]);
 
         $template->saveAs($savePath);
+
         ActaFirmada::create([
-            'tipo'               => 'chip',
-            'cuadrilla_id'       => $cuadrilla->id,
-            'responsable_id'     => $cuadrilla->users[0]->id ?? null,
-            'receptor_id'        => $cuadrilla->users[1]->id ?? null,
-            'cedula_responsable' => $cuadrilla->users[0]->cedula,
-            'cedula_receptor'    => $cuadrilla->users[1]->cedula ?? null,
-            'ruta_docx'          => 'actas/chips/' . $fileName,
-            'firmado_en'         => now(),
+            'tipo' => 'chip',
+            'cuadrilla_id' => $cuadrilla->id,
+            'responsable_id' => $colaboradores[0]->id ?? null,
+            'receptor_id' => $colaboradores[1]->id ?? null,
+            'cedula_responsable' => $colaboradores[0]->cedula ?? null,
+            'cedula_receptor' => $colaboradores[1]->cedula ?? null,
+            'ruta_docx' => 'actas/chips/' . $fileName,
+            'firmado_en' => now(),
         ]);
+
         @unlink($firmaResponsablePath);
         @unlink($firmaReceptorPath);
         $this->firmas = [];
@@ -588,35 +428,30 @@ class EquiposCuadrillas extends Component
         return response()->download($savePath);
     }
 
-
-    /* public function generarActaEquipo($cuaId)
+    public function generarActaEquipo($cuaId)
     {
-        if (
-            empty($this->firmas['responsable']) ||
-            empty($this->firmas['receptor'])
-        ) {
+        if (empty($this->firmas['responsable']) || empty($this->firmas['receptor'])) {
             $this->dispatch('error', message: 'Debe capturar ambas firmas antes de generar el acta');
             return;
         }
 
         $cuadrilla = Cuadrilla::with([
             'users',
-            'equipos' => fn($q) => $q->whereIn('tipo_equipo_id', [3, 10])
+            'equipos' => fn($q) => $q->whereIn('tipo_equipo_id', [3, 10]),
         ])->find($cuaId);
 
         if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
             return;
         }
-        $equipos = $cuadrilla->equipos->values()->map(function ($equipo, $index) {
-            return [
-                'numero'      => $index + 1,
-                'descripcion' => $equipo->nombre ?? 'N/A',
-                'marca'       => $equipo->marca ?? 'N/A',
-                'modelo'      => $equipo->modelo ?? 'N/A',
-                'serie'       => $equipo->serie ?? 'N/A',
-            ];
-        })->toArray();
+
+        $equipos = $cuadrilla->equipos->values()->map(fn($equipo, $index) => [
+            'numero' => $index + 1,
+            'descripcion' => $equipo->nombre ?? 'N/A',
+            'marca' => $equipo->marca ?? 'N/A',
+            'modelo' => $equipo->modelo ?? 'N/A',
+            'serie' => $equipo->serie ?? 'N/A',
+        ])->toArray();
 
         if (count($equipos) === 0) {
             $equipos[] = [
@@ -627,8 +462,9 @@ class EquiposCuadrillas extends Component
                 'serie' => 'N/A',
             ];
         }
-        $firmaResponsablePath = $this->guardarFirmaTemporal($this->firmas['responsable']);
-        $firmaReceptorPath    = $this->guardarFirmaTemporal($this->firmas['receptor']);
+
+        $firmaResponsablePath = $this->guardarFirmaComoArchivo($this->firmas['responsable']);
+        $firmaReceptorPath = $this->guardarFirmaComoArchivo($this->firmas['receptor']);
 
         if (
             !$firmaResponsablePath || !file_exists($firmaResponsablePath) ||
@@ -637,35 +473,40 @@ class EquiposCuadrillas extends Component
             $this->dispatch('error', message: 'No se pudo procesar una de las firmas');
             return;
         }
+
         $templatePath = public_path('templates/acta_entregaequipo_cuadrilla_nuevo.docx');
+        if (!file_exists($templatePath)) {
+            $this->dispatch('error', message: 'Plantilla no encontrada.');
+            return;
+        }
+
+        $colaboradores = $cuadrilla->users->take(2)->values();
         $fileName = 'acta_entrega_equipo_' . now()->format('Ymd_His') . '.docx';
         $savePath = public_path('actas/entrega_equiposCuadrillas/' . $fileName);
 
         $template = new TemplateProcessor($templatePath);
         $template->setValue('fecha', now()->format('d/m/Y'));
-        $template->setValue('colaborador1', $cuadrilla->users[0]->name ?? 'N/A');
-        $template->setValue('cedula1', $cuadrilla->users[0]->cedula ?? 'N/A');
-        $template->setValue('colaborador2', $cuadrilla->users[1]->name ?? 'N/A');
-        $template->setValue('cedula2', $cuadrilla->users[1]->cedula ?? 'N/A');
+        $template->setValue('colaborador1', $colaboradores[0]->name ?? 'N/A');
+        $template->setValue('cedula1', $colaboradores[0]->cedula ?? 'N/A');
+        $template->setValue('colaborador2', $colaboradores[1]->name ?? 'N/A');
+        $template->setValue('cedula2', $colaboradores[1]->cedula ?? 'N/A');
         $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
         $template->setImageValue('firma_responsable', [
-            'path'   => $firmaResponsablePath,
-            'width'  => 180,
+            'path' => $firmaResponsablePath,
+            'width' => 180,
             'height' => 70,
-            'ratio'  => true,
+            'ratio' => true,
         ]);
-
         $template->setImageValue('firma_receptor', [
-            'path'   => $firmaReceptorPath,
-            'width'  => 180,
+            'path' => $firmaReceptorPath,
+            'width' => 180,
             'height' => 70,
-            'ratio'  => true,
+            'ratio' => true,
         ]);
 
         $template->cloneRow('descripcion', count($equipos));
         foreach ($equipos as $i => $equipo) {
             $row = $i + 1;
-
             $template->setValue("numero#$row", $equipo['numero']);
             $template->setValue("descripcion#$row", $equipo['descripcion']);
             $template->setValue("marca#$row", $equipo['marca']);
@@ -674,26 +515,29 @@ class EquiposCuadrillas extends Component
         }
 
         $template->saveAs($savePath);
+
         ActaFirmada::create([
-            'tipo'               => 'equipo',
-            'cuadrilla_id'       => $cuadrilla->id,
-            'responsable_id'     => $cuadrilla->users[0]->id ?? null,
-            'receptor_id'        => $cuadrilla->users[1]->id ?? null,
-            'cedula_responsable' => $cuadrilla->users[0]->cedula,
-            'cedula_receptor'    => $cuadrilla->users[1]->cedula ?? null,
-            'ruta_docx'          => 'actas/entrega_equiposCuadrillas/' . $fileName,
-            'firmado_en'         => now(),
+            'tipo' => 'equipo',
+            'cuadrilla_id' => $cuadrilla->id,
+            'responsable_id' => $colaboradores[0]->id ?? null,
+            'receptor_id' => $colaboradores[1]->id ?? null,
+            'cedula_responsable' => $colaboradores[0]->cedula ?? null,
+            'cedula_receptor' => $colaboradores[1]->cedula ?? null,
+            'ruta_docx' => 'actas/entrega_equiposCuadrillas/' . $fileName,
+            'firmado_en' => now(),
         ]);
+
         @unlink($firmaResponsablePath);
         @unlink($firmaReceptorPath);
-
         $this->firmas = [];
+
         return response()->download($savePath);
-    } */
+    }
 
     public function cerrarModal()
     {
         $this->reset(['opciones', 'cuaIdSeleccionado', 'firmaBase64']);
+        $this->firmas = [];
         $this->dispatch('limpiar-firma');
     }
 
@@ -701,8 +545,7 @@ class EquiposCuadrillas extends Component
     {
         require_once app_path('Libraries/tbs_class.php');
         require_once app_path('Libraries/tbs_plugin_opentbs.php');
-
-        $cuadrilla = Cuadrilla::with('equipos')->find($cuaId);
+        $cuadrilla = Cuadrilla::with(['equipos', 'users'])->find($cuaId);
 
         if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
@@ -725,19 +568,14 @@ class EquiposCuadrillas extends Component
         $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
         $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre);
 
-        $nombreCompleto = $cuadrilla->cua_nombre;
-        $equipos = [];
+        $equipos = $cuadrilla->equipos->map(fn($equipo) => [
+            'descripcion' => $equipo->nombre ?? 'N/A',
+            'marca' => $equipo->marca ?? 'N/A',
+            'modelo' => $equipo->modelo ?? 'N/A',
+            'serie' => $equipo->serie ?? 'N/A',
+        ])->toArray();
 
-        foreach ($cuadrilla->equipos as $equipo) {
-            $equipos[] = [
-                'descripcion' => $equipo->nombre ?? 'N/A',
-                'marca' => $equipo->marca ?? 'N/A',
-                'modelo' => $equipo->modelo ?? 'N/A',
-                'serie' => $equipo->serie ?? 'N/A',
-            ];
-        }
-
-        while (count($equipos) < 7) {
+        while (count($equipos) < self::MIN_FILAS_ACTA_DESCARGO) {
             $equipos[] = [
                 'descripcion' => 'N/A',
                 'marca' => 'N/A',
@@ -746,7 +584,7 @@ class EquiposCuadrillas extends Component
             ];
         }
 
-        $TBS->MergeField('usu.nombre', $nombreCompleto);
+        $TBS->MergeField('usu.nombre', $cuadrilla->cua_nombre);
         $TBS->MergeField('fecha', date('d/m/Y'));
 
         foreach ($equipos as $index => $equipo) {
@@ -756,10 +594,11 @@ class EquiposCuadrillas extends Component
             $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
         }
 
-        $fileName = 'acta_descargo_equipo_' . str_replace(' ', '_', strtolower($nombreCompleto)) . '_' . date('Ymd') . '.docx';
+        $fileName = 'acta_descargo_equipo_' . str_replace(' ', '_', strtolower($cuadrilla->cua_nombre)) . '_' . date('Ymd') . '.docx';
         $savePath = public_path('actas/entrega_equiposUsuarios/' . $fileName);
 
         $TBS->Show(OPENTBS_FILE, $savePath);
+
         return response()->download($savePath)->deleteFileAfterSend();
     }
 
@@ -769,40 +608,22 @@ class EquiposCuadrillas extends Component
 
         $cuadrillas = Cuadrilla::with([
             'users:id,name,cedula',
-            'equipos:id,nombre,marca,serie'
+            'equipos:id,nombre,marca,serie',
         ])
             ->when($this->search, function ($query) {
                 $search = '%' . $this->search . '%';
 
                 $query->where(function ($q) use ($search) {
                     $q->where('cua_nombre', 'like', $search)
-                        ->orWhereHas(
-                            'users',
-                            fn($u) =>
-                            $u->where('name', 'like', $search)
-                        )
-                        ->orWhereHas(
-                            'equipos',
-                            fn($e) =>
-                            $e->where('serie', 'like', $search)
-                        );
+                        ->orWhereHas('users', fn($u) => $u->where('name', 'like', $search))
+                        ->orWhereHas('equipos', fn($e) => $e->where('serie', 'like', $search));
                 });
             })
-            ->when(
-                $user->hasRole('operador1'),
-                fn($q) => $q->where('cua_ciudad', 1)
-            )
-            ->when(
-                $user->hasRole('operador2'),
-                fn($q) => $q->where('cua_ciudad', 2)
-            )
+            ->when($user->hasRole('operador1'), fn($q) => $q->where('cua_ciudad', 1))
+            ->when($user->hasRole('operador2'), fn($q) => $q->where('cua_ciudad', 2))
             ->latest('id')
             ->paginate(40);
 
-        $users = User::select('id', 'name', 'cedula')
-            ->whereDoesntHave('cuadrillas')
-            ->get();
-
-        return view('livewire.equipos-cuadrillas', compact('cuadrillas', 'users'));
+        return view('livewire.equipos-cuadrillas', compact('cuadrillas'));
     }
 }

@@ -5,6 +5,8 @@ namespace App\Livewire;
 use App\Models\Actas;
 use App\Models\TipoContrato;
 use App\Models\User;
+use App\Notifications\CredencialCreada;
+use Illuminate\Support\Facades\Notification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -155,43 +157,65 @@ class EntregaCredenciales extends Component
     }
 
 
-    public function guardarActa()
-    {
-        $this->validate();
+   public function guardarActa()
+{
+    $this->validate();
 
-        DB::beginTransaction();
+    DB::beginTransaction();
 
-        try {
-            $rutaImagen = null;
+    try {
+        $rutaImagen = null;
 
-            if ($this->imagen) {
-                $manager = new ImageManager(new Driver());
-                $img = $manager->read($this->imagen->getRealPath());
-                $img = $img->toJpeg(70);
-                $nombreArchivo = 'actas/imagenes/' . uniqid() . '.jpg';
-                Storage::disk('public')->put($nombreArchivo, $img);
+        // 📸 Procesar imagen
+        if ($this->imagen) {
+            $manager = new ImageManager(new Driver());
+            $img = $manager->read($this->imagen->getRealPath());
+            $img = $img->toJpeg(70);
 
-                $rutaImagen = $nombreArchivo;
-            }
+            $nombreArchivo = 'actas/imagenes/' . uniqid() . '.jpg';
+            Storage::disk('public')->put($nombreArchivo, $img);
 
-            Actas::create([
-                'user_id' => $this->colaboradorSeleccionado,
-                'fecha_entrega' => Carbon::now(),
-                'empresa' => $this->empresa,
-                'tipo_sangre' => $this->tipo_sangre,
-                'tipo_contrato_id' => $this->tipo_contrato_id,
-                'imagen_path' => $rutaImagen,
-            ]);
-
-            DB::commit();
-
-            $this->reset(['empresa', 'tipo_sangre', 'tipo_contrato_id', 'imagen', 'modalDatosActa']);
-            session()->flash('message', 'Acta creada correctamente.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            session()->flash('error', 'Error al crear el acta: ' . $e->getMessage());
+            $rutaImagen = $nombreArchivo;
         }
+
+       
+        $acta = Actas::create([
+            'user_id' => $this->colaboradorSeleccionado,
+            'fecha_entrega' => Carbon::now(),
+            'empresa' => $this->empresa,
+            'tipo_sangre' => $this->tipo_sangre,
+            'tipo_contrato_id' => $this->tipo_contrato_id,
+            'imagen_path' => $rutaImagen,
+        ]);
+
+       
+        $acta->load('user');
+        $admins = User::role('Admin')->get();
+
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new CredencialCreada($acta));
+        }
+        $usuario = User::find($acta->user_id);
+        if ($usuario) {
+            $usuario->notify(new CredencialCreada($acta));
+        }
+
+        DB::commit();
+        $this->reset([
+            'empresa',
+            'tipo_sangre',
+            'tipo_contrato_id',
+            'imagen',
+            'modalDatosActa'
+        ]);
+
+        session()->flash('message', 'Acta creada correctamente.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
     }
+}
 
 
 

@@ -24,10 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
             $router->middleware('web', 'auth')
                 ->prefix('admin')
                 ->group(base_path('routes/admin.php'));
+
+            $router->middleware('web', 'auth')
+                ->prefix('students')
+                ->name('student.')
+                ->group(base_path('routes/students.php'));
         },
 
     )
-    ->withMiddleware(function (Middleware $middleware) {
-        
-    })
+    ->withMiddleware(function (Middleware $middleware) {})
     ->withExceptions(function (Exceptions $exceptions) {})->create();

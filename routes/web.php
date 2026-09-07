@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DatatableController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\IncidenteController;
+use App\Http\Controllers\IncidenteVehiculoController;
+use App\Livewire\Cotizador;
 use App\Livewire\EquiposTable;
+use App\Livewire\InventarioReporte;
 use Illuminate\Support\Facades\Artisan;
 
 Route::get('/', HomeController::class)->name('home');
@@ -37,3 +40,12 @@ Route::get("/generate-link-simbolik", function () {
 });
 Route::get('/incidentes', [IncidenteController::class, 'index']);
 Route::get('/consultas', [ConsultasController::class, 'index']);
+Route::post('incidentesvehiculos/buscar-por-placa', [IncidenteVehiculoController::class, 'buscarPorPlaca']);
+Route::post('incidentesvehiculos/subir-fotos', [IncidenteVehiculoController::class, 'subirFotos']);
+Route::get('incidentesvehiculos/listar-choferes', [IncidenteVehiculoController::class, 'listarChoferes']);
+
+Route::resource('incidentesvehiculos', IncidenteVehiculoController::class);
+
+Route::get('tecnicos', InventarioReporte::class)->name('tecnicos.inventario');
+Route::get('cotizador',Cotizador::class);
+

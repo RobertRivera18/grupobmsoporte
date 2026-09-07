@@ -144,11 +144,7 @@ class IndumentariaController extends Controller
 
         $request->validate($rules);
 
-        /*
-    |--------------------------------------------------------------------------
-    | 📸 1️⃣ MANEJO DE IMAGEN
-    |--------------------------------------------------------------------------
-    */
+  
 
         if ($request->hasFile('image')) {
 

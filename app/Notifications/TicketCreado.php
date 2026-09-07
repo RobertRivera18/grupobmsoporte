@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\HtmlString;
 
 class TicketCreado extends Notification
 {
@@ -42,6 +43,7 @@ class TicketCreado extends Notification
                 'notifiable' => $notifiable,
                 'ticket' => $this->ticket,
                 'usuario' => $this->ticket->user,
+                'descripcion_html' => new HtmlString($this->ticket->tick_descrip),
             ]);
     }
 

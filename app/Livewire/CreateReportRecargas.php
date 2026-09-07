@@ -5,21 +5,51 @@ namespace App\Livewire;
 use App\Models\Cuadrilla;
 use App\Models\Report;
 use App\Models\ReporteRecargaDetalle;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class CreateReportRecargas extends Component
 {
-    public $cuadrillas = [];
-    public $seleccionadas = [];
+    public $seleccionadas = []; 
     public $valorRecarga = 10.50;
+    public $search = '';
 
-    public function mount()
+    // Método helper para reutilizar la consulta con buscador y filtros
+    private function getCuadrillasQuery()
     {
-        $this->cuadrillas = Cuadrilla::with(['equipos', 'users'])
-            ->whereHas('equipos')
-            ->get();
+        return Cuadrilla::whereHas('equipos', function ($query) {
+                $query->where('tipo_equipo_id', 4);
+            })
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('cua_nombre', 'like', '%' . $this->search . '%')
+                      ->orWhere('cua_ciudad', 'like', '%' . $this->search . '%')
+                      ->orWhereHas('equipos', fn($qEq) => $qEq->where('serie', 'like', '%' . $this->search . '%'))
+                      ->orWhereHas('users', fn($qUs) => $qUs->where('name', 'like', '%' . $this->search . '%'));
+                });
+            })
+            ->with([
+                'equipos' => function ($query) {
+                    $query->where('tipo_equipo_id', 4);
+                },
+                'users'
+            ])
+            ->orderBy('cua_ciudad', 'asc');
     }
 
+    public function seleccionarTodas()
+    {
+        // Selecciona todas las cuadrillas que coinciden con el filtro/búsqueda actual
+        $this->seleccionadas = $this->getCuadrillasQuery()
+            ->pluck('id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
+    }
+
+    public function deseleccionarTodas()
+    {
+        $this->seleccionadas = [];
+    }
 
     public function generarReporte()
     {
@@ -28,25 +58,28 @@ class CreateReportRecargas extends Component
             return;
         }
 
-        $total = count($this->seleccionadas) * $this->valorRecarga;
+        // Transacción DB para garantizar consistencia
+        DB::transaction(function () {
+            $total = count($this->seleccionadas) * $this->valorRecarga;
 
-
-        $reporte = Report::create([
-            'mes' => now()->translatedFormat('F Y'),
-            'total' => $total,
-            'fecha_registro' => now()->toDateString(),
-        ]);
-
-        foreach ($this->seleccionadas as $cuadrillaId) {
-            ReporteRecargaDetalle::create([
-                'reporte_id' => $reporte->id,
-                'cuadrilla_id' => $cuadrillaId,
-                'valor_recarga' => $this->valorRecarga,
+            $reporte = Report::create([
+                'mes' => now()->translatedFormat('F Y'), 
+                'total' => $total,
+                'fecha_registro' => now()->toDateString(), 
             ]);
-        }
+
+            foreach ($this->seleccionadas as $cuadrillaId) {
+                ReporteRecargaDetalle::create([
+                    'reporte_id' => $reporte->id,
+                    'cuadrilla_id' => $cuadrillaId,
+                    'valor_recarga' => $this->valorRecarga,
+                ]);
+            }
+        });
 
         $this->dispatch('success', message: 'Reporte generado correctamente.');
         $this->seleccionadas = [];
+
         session()->flash('swal', [
             'icon' => 'success',
             'title' => '¡Bien hecho!',
@@ -62,8 +95,8 @@ class CreateReportRecargas extends Component
 
     public function render()
     {
-        return view('livewire.create-report-recargas', [
-            'cuadrillas' => $this->cuadrillas,
-        ]);
+        $cuadrillas = $this->getCuadrillasQuery()->get();
+
+        return view('livewire.create-report-recargas', compact('cuadrillas'));
     }
 }

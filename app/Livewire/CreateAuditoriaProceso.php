@@ -7,22 +7,21 @@ use App\Models\Auditoria;
 use App\Models\AuditoriaProceso;
 use App\Models\NormaISO;
 use App\Models\User;
+use App\Notifications\AuditorAsignado;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
-
-
 class CreateAuditoriaProceso extends Component
 {
     use AuthorizesRequests;
+
     public Auditoria $auditoria;
     public $area_id;
     public $auditor_id;
     public $responsable_id;
     public $normas = [];
     public $procesos = [];
-
 
     private function refreshProcesos()
     {
@@ -31,6 +30,7 @@ class CreateAuditoriaProceso extends Component
             ->with(['area', 'auditor', 'responsable', 'normas'])
             ->get();
     }
+
     public function mount(Auditoria $auditoria)
     {
         $this->authorize('view', $auditoria);
@@ -38,6 +38,13 @@ class CreateAuditoriaProceso extends Component
         $this->refreshProcesos();
     }
 
+    // 👇 AGREGAR ESTO
+    public function updatedAreaId($value)
+    {
+        $area = Area::find($value);
+
+        $this->responsable_id = $area?->responsable_id;
+    }
 
     public function rules()
     {
@@ -52,32 +59,43 @@ class CreateAuditoriaProceso extends Component
 
 
     public function save()
-    {
-        $this->validate();
-        DB::transaction(function () {
-            $proceso = AuditoriaProceso::create([
-                'auditoria_id'   => $this->auditoria->id,
-                'area_id'        => $this->area_id,
-                'auditor_id'     => $this->auditor_id,
-                'responsable_id' => $this->responsable_id,
-            ]);
+{
+    $this->validate();
 
-            $proceso->normas()->sync($this->normas);
-        });
-
-        $this->procesos = $this->auditoria
-            ->procesos()
-            ->with(['area', 'auditor', 'responsable', 'normas'])
-            ->get();
-
-        $this->reset(['area_id', 'auditor_id', 'responsable_id', 'normas']);
-
-        $this->dispatch('swal', [
-            'icon' => 'success',
-            'title' => 'Proceso creado',
-            'text' => 'El proceso de auditoría se creó correctamente.',
+    DB::transaction(function () {
+        $proceso = AuditoriaProceso::create([
+            'auditoria_id'   => $this->auditoria->id,
+            'area_id'        => $this->area_id,
+            'auditor_id'     => $this->auditor_id,
+            'responsable_id' => $this->responsable_id,
         ]);
-    }
+
+        $proceso->normas()->sync($this->normas);
+
+        $proceso->load(['auditoria', 'area', 'auditor', 'responsable', 'normas']);
+
+        if ($proceso->auditor) {
+            $proceso->auditor->notify(new AuditorAsignado($proceso, 'auditor'));
+        }
+
+        if ($proceso->responsable && $proceso->responsable_id !== $proceso->auditor_id) {
+            $proceso->responsable->notify(new AuditorAsignado($proceso, 'responsable'));
+        }
+    });
+
+    $this->procesos = $this->auditoria
+        ->procesos()
+        ->with(['area', 'auditor', 'responsable', 'normas'])
+        ->get();
+
+    $this->reset(['area_id', 'auditor_id', 'responsable_id', 'normas']);
+
+    $this->dispatch('swal', [
+        'icon' => 'success',
+        'title' => 'Proceso creado',
+        'text' => 'El proceso de auditoría se creó correctamente.',
+    ]);
+}
 
 
 

@@ -32,4 +32,15 @@ class Equipos extends Model
     {
         return $this->belongsTo(TipoEquipo::class, 'tipo_equipo_id');
     }
+
+
+    public function salidas()
+    {
+        return $this->hasMany(SalidaEquipo::class);
+    }
+
+    public function solicitudesDesvinculacion()
+    {
+        return $this->hasMany(SolicitudDesvinculacionEquipo::class);
+    }
 }

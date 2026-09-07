@@ -21,7 +21,7 @@
             <div class="flex-1">
                 <x-label for="cua_empresa" class="mb-2">Empresa</x-label>
                 <select id="cua_empresa" name="cua_empresa"
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                     <option value="1" {{ old('cua_empresa') == 1 ? 'selected' : '' }}>Claro</option>
                     <option value="2" {{ old('cua_empresa') == 2 ? 'selected' : '' }}>CNEL</option>
                 </select>
@@ -30,16 +30,18 @@
             <div class="flex-1">
                 <x-label for="cua_ciudad" class="mb-2">Ciudad</x-label>
                 <select id="cua_ciudad" name="cua_ciudad"
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                     <option value="1" {{ old('cua_ciudad') == 1 ? 'selected' : '' }}>Guayaquil</option>
                     <option value="2" {{ old('cua_ciudad') == 2 ? 'selected' : '' }}>Quito</option>
                 </select>
             </div>
+         
         </div>
 
         {{-- Botón --}}
         <div class="flex justify-end mt-6">
-            <x-button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200">
+            <x-button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200">
                 <i class="fas fa-save mr-2"></i>
                 Crear Cuadrilla
             </x-button>

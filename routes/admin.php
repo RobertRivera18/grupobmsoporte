@@ -6,9 +6,11 @@ use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CredencialesController;
 use App\Http\Controllers\Admin\CuadrillaController;
+use App\Http\Controllers\Admin\DesvinculacionController;
 use App\Http\Controllers\Admin\DevolucionIndumentariaController;
 use App\Http\Controllers\Admin\EntregaIndumentariaController;
 use App\Http\Controllers\Admin\EquiposController;
+use App\Http\Controllers\Admin\GestionInventarioController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PostController;
 use App\Http\Controllers\Admin\ReportController;
@@ -19,9 +21,21 @@ use App\Http\Controllers\Admin\IncidenteController;
 use App\Http\Controllers\Admin\IndumentariaController;
 use App\Http\Controllers\Admin\IngresoIndumentariaController;
 use App\Http\Controllers\Admin\KardexIndumentariaController;
+use App\Http\Controllers\Admin\MantenimientosVehiculosController;
+use App\Http\Controllers\Admin\RevisionesVehiculares;
+use App\Http\Controllers\Admin\SalidaEquiposController;
 use App\Http\Controllers\Admin\TipoEquipoController;
 use App\Http\Controllers\Admin\TrasladosController;
+use App\Http\Controllers\Admin\VehiculoController;
 use App\Http\Controllers\TipoContratoController;
+use App\Livewire\Admin\Capacitacion\Courses\Create;
+use App\Livewire\Admin\Capacitacion\Courses\Edit;
+use App\Livewire\Admin\Capacitacion\Courses\Index;
+use App\Livewire\Admin\Capacitacion\Courses\QuizBuilder;
+use App\Livewire\Admin\Capacitacion\Courses\Show;
+use App\Livewire\Admin\Enrollments\Index as EnrollmentsIndex;
+use App\Livewire\ExecutiveDashboard;
+
 use Illuminate\Support\Facades\Route;
 
 
@@ -94,6 +108,7 @@ Route::resource('/reportes', ReportController::class)->names('admin.reportes')
 Route::resource('/tipocontratos', TipoContratoController::class)
     ->middleware(['can:Gestion de Tipos de Equipos'])
     ->names('admin.tipocontratos');
+
 
 Route::get(
     '/areas/{area}/indicadores/{indicador}',
@@ -183,4 +198,76 @@ Route::get(
 //Ruta Resoruce de Auditorias
 Route::resource('/auditorias', AuditoriaController::class)
     ->names('admin.auditorias')
-    ->middleware(['can:Auditorias']);;
+    ->middleware(['can:Auditorias']);
+
+Route::patch('auditorias/{auditoria}/estado', [AuditoriaController::class, 'cambiarEstado'])
+    ->name('admin.auditorias.cambiarEstado')
+    ->middleware(['can:Auditorias']);
+
+//Ruta para solicitud permiso equipo
+Route::resource('/salidaequipos', SalidaEquiposController::class)
+    ->names('admin.salidas');
+
+//Ruta Gestion de Vehiculos
+Route::get('/vehiculos/{vehiculo}/inspeccionar', [VehiculoController::class, 'inspeccionar'])
+    ->name('admin.vehiculos.inspeccionar');
+Route::resource('/vehiculos', VehiculoController::class)
+    ->names('admin.vehiculos');
+Route::resource('mantenimientos', MantenimientosVehiculosController::class)
+    ->names('admin.mantenimientos');
+
+
+
+Route::post('revisiones/{vehiculoinspeccion}/export-word', [RevisionesVehiculares::class, 'exportWord'])
+    ->name('admin.revisiones.exportWord');
+
+Route::get('revisiones/{vehiculoinspeccion}/export-word', [RevisionesVehiculares::class, 'exportWord'])
+    ->name('admin.revisiones.exportWord.get');
+Route::resource('revisiones', RevisionesVehiculares::class)
+    ->parameters([
+        'revisiones' => 'vehiculoinspeccion'
+    ])
+    ->names('admin.revisiones');
+
+Route::resource('tecnicos', GestionInventarioController::class)->names('admin.tecnicos');
+Route::get('desvinculacion/{desvinculacion}/acta-liberacion', [DesvinculacionController::class, 'generarActaLiberacion'])
+    ->name('admin.desvinculacion.acta-liberacion');
+Route::resource('desvinculacion', DesvinculacionController::class)->names('admin.desvinculacion');
+
+
+Route::get('/dashboard/ejecutivo', ExecutiveDashboard::class)
+    ->middleware(['can:Acceso al Dashboard'])
+    ->name('admin.dashboard.ejecutivo');
+
+
+/*
+|--------------------------------------------------------------------------
+| Módulo de Capacitación
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('capacitacion')->group(function () {
+
+    Route::get('/cursos', Index::class)
+        ->middleware(['can:Gestion de Capacitacion'])
+        ->name('admin.capacitacion.courses.index');
+
+    Route::get('/cursos/crear', Create::class)
+        ->middleware(['can:Gestion de Capacitacion'])
+        ->name('admin.capacitacion.courses.create');
+
+    Route::get('/cursos/{course}/editar', Edit::class)
+        ->middleware(['can:Gestion de Capacitacion'])
+        ->name('admin.capacitacion.courses.edit');
+
+    Route::get('/cursos/{course}', Show::class)
+        ->middleware(['can:Gestion de Capacitacion'])
+        ->name('admin.capacitacion.courses.show');
+
+    // Ruta para gestionar el Quiz del Módulo
+    Route::get('/modulos/{module}/quiz', QuizBuilder::class)
+        ->middleware(['can:Gestion de Capacitacion'])
+        ->name('admin.capacitacion.modules.quiz');
+    
+});
+Route::get('/enrollments', EnrollmentsIndex::class)->name('admin.enrollments.index');

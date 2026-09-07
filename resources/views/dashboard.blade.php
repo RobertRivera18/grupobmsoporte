@@ -10,7 +10,8 @@
             <div class="bg-white shadow-xl sm:rounded-lg p-8">
                 <h1 class="text-3xl font-bold text-gray-800 mb-4">¡Bienvenido!</h1>
                 <p class="text-gray-600 mb-6">
-                    Este sistema de Helpdesk está diseñado para gestionar solicitudes de soporte de manera eficiente y organizada. Aquí puedes crear, dar seguimiento y resolver tickets de tus usuarios o clientes.
+                    Este sistema de Helpdesk está diseñado para gestionar solicitudes de soporte de manera eficiente y
+                    organizada. Aquí puedes crear, dar seguimiento y resolver tickets de tus usuarios o clientes.
                 </p>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -20,7 +21,8 @@
                         <div>
                             <h2 class="text-xl font-semibold mb-1">Crear Tickets</h2>
                             <p class="text-gray-600">
-                                Permite registrar nuevas solicitudes de soporte indicando la categoría, prioridad y descripción del problema.
+                                Permite registrar nuevas solicitudes de soporte indicando la categoría, prioridad y
+                                descripción del problema.
                             </p>
                         </div>
                     </div>
@@ -31,7 +33,8 @@
                         <div>
                             <h2 class="text-xl font-semibold mb-1">Dar Seguimiento</h2>
                             <p class="text-gray-600">
-                                Consulta el estado de tus tickets, actualiza información y agrega comentarios para mantener una comunicación clara.
+                                Consulta el estado de tus tickets, actualiza información y agrega comentarios para
+                                mantener una comunicación clara.
                             </p>
                         </div>
                     </div>
@@ -42,7 +45,8 @@
                         <div>
                             <h2 class="text-xl font-semibold mb-1">Gestión de Prioridades</h2>
                             <p class="text-gray-600">
-                                Organiza los tickets según su urgencia y criticidad, garantizando que los problemas más importantes se resuelvan primero.
+                                Organiza los tickets según su urgencia y criticidad, garantizando que los problemas más
+                                importantes se resuelvan primero.
                             </p>
                         </div>
                     </div>
@@ -53,7 +57,8 @@
                         <div>
                             <h2 class="text-xl font-semibold mb-1">Resolución y Cierre</h2>
                             <p class="text-gray-600">
-                                Una vez resuelto el problema, puedes cerrar el ticket y notificar al usuario, manteniendo un historial completo de soporte.
+                                Una vez resuelto el problema, puedes cerrar el ticket y notificar al usuario,
+                                manteniendo un historial completo de soporte.
                             </p>
                         </div>
                     </div>
@@ -61,7 +66,8 @@
 
                 <!-- Botón de login -->
                 <div class="mt-8 flex justify-center">
-                    <a href="{{ route('login') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition flex items-center gap-2">
+                    <a href="{{ route('login') }}"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition flex items-center gap-2">
                         <i class="fas fa-sign-in-alt"></i>
                         Iniciar Sesión
                     </a>

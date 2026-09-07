@@ -63,6 +63,16 @@ class AuditoriaController extends Controller
 
         return view('admin.auditorias.show', compact('auditoria'));
     }
+    public function cambiarEstado(Request $request, Auditoria $auditoria)
+    {
+        $request->validate([
+            'estado' => ['required', 'in:planificada,en_proceso,cerrada'],
+        ]);
+
+        $auditoria->update(['estado' => $request->estado]);
+
+        return back()->with('success', 'Estado actualizado correctamente.');
+    }
 
     public function detalle(Auditoria $auditoria, AuditoriaProceso $proceso)
     {

@@ -34,7 +34,9 @@ class User extends Authenticatable
         'cedula',
         'ruta_comprobante',
         'qr_codigo',
-        'notification'
+        'notification',
+        'ruta_firma',
+        'estado'
 
     ];
 
@@ -134,5 +136,72 @@ class User extends Authenticatable
     public function auditoriasComoResponsable()
     {
         return $this->hasMany(AuditoriaProceso::class, 'responsable_id');
+    }
+
+    public function salidas()
+    {
+        return $this->hasMany(SalidaEquipo::class, 'usuario_id');
+    }
+
+    public function aprobaciones()
+    {
+        return $this->hasMany(SalidaEquipo::class, 'aprobado_por');
+    }
+
+    public function solicitudesDesvinculacion()
+    {
+        return $this->hasMany(SolicitudDesvinculacion::class);
+    }
+
+
+    //Ultimas Relaciones
+    public function courses()
+    {
+        return $this->belongsToMany(
+            Course::class,
+            'course_enrollments'
+        )->withPivot([
+            'enrolled_at',
+            'completed_at',
+            'progress',
+            'status',
+        ])->withTimestamps();
+    }
+
+    public function courseEnrollments()
+    {
+        return $this->hasMany(
+            CourseEnrollment::class
+        );
+    }
+
+    public function lessonProgress()
+    {
+        return $this->hasMany(
+            LessonProgress::class
+        );
+    }
+
+    public function quizAttempts()
+    {
+        return $this->hasMany(
+            QuizAttempt::class
+        );
+    }
+
+    public function createdCourses()
+    {
+        return $this->hasMany(
+            Course::class,
+            'created_by'
+        );
+    }
+
+    public function createdQuestions()
+    {
+        return $this->hasMany(
+            Question::class,
+            'created_by'
+        );
     }
 }

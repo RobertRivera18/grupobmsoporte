@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\IncidenteVehiculoController;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,3 +23,5 @@ Route::get('/tags', function (Request $request) {
         });
     return $tags;
 })->name('api.tags.index');
+
+Route::post('/api/fotos-temp', [IncidenteVehiculoController::class, 'subirFotoTemporal'])->name('api.fotos.temp');

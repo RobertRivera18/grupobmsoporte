@@ -1,20 +1,28 @@
 @component('mail::message')
-# Nuevo Ticket Creado
+# 🎫 Nuevo Ticket de Soporte
 
 Hola **{{ $notifiable->name }}**,
 
-El usuario **{{ $usuario->name }}** ha creado un nuevo ticket en el sistema.
+Se ha registrado un nuevo ticket en la plataforma de soporte de **Grupo BM**. A continuación, encontrarás los detalles de la solicitud:
 
-### Detalles del Ticket:
-- **Título:** {{ $ticket->tick_titulo }}
-- **Categoría:** {{ $ticket->categoria->name ?? 'N/A' }}
-- **Descripción:**  
-{{ $ticket->tick_descrip }}
+---
 
-@component('mail::button', ['url' => route('admin.tickets.show', $ticket->tick_id)])
-Ver Ticket
+### 📋 Detalles del Caso
+
+* **Título del Ticket:** {{ $ticket->tick_titulo }}
+* **Categoría Asignada:** {{ $ticket->categoria->name ?? 'No asignada' }}
+* **Creado por:** {{ $usuario->name }}
+
+**Descripción del problema:** <div>{!! $ticket->tick_descrip !!}</div>
+
+---
+
+@component('mail::button', ['url' => route('admin.tickets.show', $ticket->tick_id), 'color' => 'success'])
+Revisar y Gestionar Ticket
 @endcomponent
 
-Gracias por su atención.  
-**GrupoBM**
+Si requieres asistencia técnica adicional o necesitas verificar el historial, puedes ingresar directamente a la consola de administración.
+
+Atentamente,  
+**Equipo Técnico | Grupo BM**
 @endcomponent
