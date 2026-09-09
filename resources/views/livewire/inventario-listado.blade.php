@@ -16,10 +16,11 @@
 
     <!-- Filtros -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <!-- Modificado de md:grid-cols-6 a md:grid-cols-7 para incluir el nuevo filtro -->
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
 
             <!-- Buscador -->
-            <div class="md:col-span-1">
+            <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Cuadrilla</label>
                 <input type="text" wire:model.live.debounce.300ms="buscar" placeholder="Buscar..."
                     class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm" />
@@ -74,6 +75,19 @@
                     @endforeach
                 </select>
             </div>
+
+            <!-- NUEVO: Filtro Tipo de Actividad -->
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo Actividad</label>
+                <select wire:model.live="tipo_actividad_id"
+                    class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+                    <option value="">Todas</option>
+                    @foreach ($this->tipoActividades as $tipo)
+                        <option value="{{ $tipo->id }}">{{ $tipo->nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+
         </div>
 
         <div class="flex justify-between items-center mt-4">
@@ -94,7 +108,7 @@
 
     <!-- Tabla Principal -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
-        <div wire:loading.delay wire:target="buscar, fecha_desde, fecha_hasta, grupo_id, tecnologia_id, cuadrilla_id, limpiarFiltros, page"
+        <div wire:loading.delay wire:target="buscar, fecha_desde, fecha_hasta, grupo_id, tecnologia_id, cuadrilla_id, tipo_actividad_id, limpiarFiltros, page"
             class="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-10">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
@@ -107,6 +121,8 @@
                         <th class="px-5 py-3 text-left">Grupo</th>
                         <th class="px-5 py-3 text-left">Tecnología</th>
                         <th class="px-5 py-3 text-left">Cuadrilla</th>
+                        <th class="px-5 py-3 text-left">Tipo Actividad</th>
+                        <th class="px-5 py-3 text-left">Numero Orden</th>
                         <th class="px-5 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
@@ -129,6 +145,17 @@
                             <td class="px-5 py-3 text-gray-700">
                                 {{ $inv->cuadrilla->cua_nombre ?? '-' }}
                             </td>
+                          
+                            <td class="px-5 py-3">
+                                <span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                    {{ $inv->tipoActividad->nombre ?? '-' }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                    {{ $inv->observaciones ?? '-' }}
+                                </span>
+                            </td>
                             <td class="px-5 py-3">
                                 <div class="flex justify-end gap-2">
                                     <button wire:click="verInventario({{ $inv->id }})"
@@ -148,7 +175,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-10 text-center text-gray-400">
+                            <td colspan="6" class="py-10 text-center text-gray-400">
                                 No hay inventarios registrados
                             </td>
                         </tr>
@@ -226,9 +253,16 @@
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" wire:key="modal-detalles">
             <div class="w-full max-w-3xl rounded-2xl bg-white shadow-xl overflow-hidden" @click.outside="$wire.cerrarModal()">
-                <div class="border-b border-slate-100 bg-slate-50 px-6 py-4">
-                    <h2 class="text-lg font-semibold text-slate-900">Materiales utilizados</h2>
-                    <p class="text-sm text-slate-500 mt-1">Solo se muestran materiales con cantidad mayor a 0</p>
+                <div class="border-b border-slate-100 bg-slate-50 px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Materiales utilizados</h2>
+                        <p class="text-sm text-slate-500 mt-1">Solo se muestran materiales con cantidad mayor a 0</p>
+                    </div>
+                    @if($this->inventarioSeleccionado && $this->inventarioSeleccionado->tipoActividad)
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
+                            {{ $this->inventarioSeleccionado->tipoActividad->nombre }}
+                        </span>
+                    @endif
                 </div>
 
                 <div class="p-6">
@@ -265,7 +299,7 @@
 
                             @if($this->inventarioSeleccionado)
                                 <span class="mt-2 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                                    <strong class="font-semibold text-slate-700">Observaciones:</strong>
+                                    <strong class="font-semibold text-slate-700">Numero de Orden:</strong>
                                     {{ $this->inventarioSeleccionado->observaciones ?: 'Sin observaciones' }}
                                 </span>
                             @endif

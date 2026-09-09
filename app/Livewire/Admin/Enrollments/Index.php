@@ -12,14 +12,12 @@ class Index extends Component
 {
     use WithPagination;
 
-    // Filtros y Búsqueda
     public $search = '';
     public $selectedCourseFilter = '';
 
-    // Formulario de Nueva Matriculación
     public $user_id = '';
     public $course_id = '';
-    public $status = true; // Booleano según el casting del modelo
+    public $status = true;
 
     protected $rules = [
         'user_id' => 'required|exists:users,id',
@@ -30,8 +28,6 @@ class Index extends Component
     public function enroll()
     {
         $this->validate();
-
-        // Evitar matrículas duplicadas
         $exists = CourseEnrollment::where('user_id', $this->user_id)
             ->where('course_id', $this->course_id)
             ->exists();

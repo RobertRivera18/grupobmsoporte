@@ -6,6 +6,8 @@ use App\Models\Cuadrilla;
 use App\Models\Grupo;
 use App\Models\InventarioControl;
 use App\Models\Tecnologia;
+use App\Models\TipoActividad; 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -13,6 +15,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -30,26 +33,26 @@ class InventarioListado extends Component
     #[Url] public string $grupo_id = '';
     #[Url] public string $tecnologia_id = '';
     #[Url] public string $cuadrilla_id = '';
+    #[Url] public string $tipo_actividad_id = ''; // <--- 2. Nueva propiedad URL para filtrar por tipo de actividad
 
     public int $perPage = 15;
     public bool $mostrarModal = false;
     public bool $mostrarModalExcel = false;
     public ?int $inventarioSeleccionadoId = null;
 
-    // Propiedades para el modal de exportación por rango
     public string $excel_fecha_desde = '';
     public string $excel_fecha_hasta = '';
 
     public function updated($property): void
     {
-        if (in_array($property, ['buscar', 'fecha_desde', 'fecha_hasta', 'grupo_id', 'tecnologia_id', 'cuadrilla_id'])) {
+        if (in_array($property, ['buscar', 'fecha_desde', 'fecha_hasta', 'grupo_id', 'tecnologia_id', 'cuadrilla_id', 'tipo_actividad_id'])) {
             $this->resetPage();
         }
     }
 
     public function limpiarFiltros(): void
     {
-        $this->reset(['buscar', 'fecha_desde', 'fecha_hasta', 'grupo_id', 'tecnologia_id', 'cuadrilla_id']);
+        $this->reset(['buscar', 'fecha_desde', 'fecha_hasta', 'grupo_id', 'tecnologia_id', 'cuadrilla_id', 'tipo_actividad_id']);
         $this->resetPage();
     }
 
@@ -70,8 +73,7 @@ class InventarioListado extends Component
         if (!$this->inventarioSeleccionadoId) {
             return null;
         }
-
-        return InventarioControl::find($this->inventarioSeleccionadoId);
+        return InventarioControl::with(['tipoActividad'])->find($this->inventarioSeleccionadoId);
     }
 
     #[Computed]
@@ -106,6 +108,31 @@ class InventarioListado extends Component
             'showConfirmButton' => false,
         ]);
     }
+
+    #[Computed]
+    public function grupos()
+    {
+        return Grupo::select('id', 'nombre')->orderBy('nombre')->get();
+    }
+
+    #[Computed]
+    public function tecnologias()
+    {
+        return Tecnologia::select('id', 'nombre')->orderBy('nombre')->get();
+    }
+
+    #[Computed]
+    public function cuadrillas()
+    {
+        return Cuadrilla::select('id', 'cua_nombre')->orderBy('cua_nombre')->get();
+    }
+
+    #[Computed]
+    public function tipoActividades()
+    {
+        return TipoActividad::select('id', 'nombre')->orderBy('nombre')->get();
+    }
+
 
     public function abrirModalExcel(): void
     {
@@ -147,9 +174,21 @@ class InventarioListado extends Component
 
         $tecnologias = $this->tecnologias;
         $spreadsheet = new Spreadsheet();
-        $spreadsheet->removeSheetByIndex(0);
+        $spreadsheet->removeSheetByIndex(0); // Remover la hoja por defecto de PhpSpreadsheet
+
+        $hojaCreada = false; // Bandera para verificar si al menos una tecnología tiene datos
 
         foreach ($tecnologias as $tecnologia) {
+            $tieneInventarios = InventarioControl::query()
+                ->where('tecnologia_id', $tecnologia->id)
+                ->whereDate('fecha_inventario', '>=', $this->excel_fecha_desde)
+                ->whereDate('fecha_inventario', '<=', $this->excel_fecha_hasta)
+                ->exists();
+
+            if (!$tieneInventarios) {
+                continue;
+            }
+
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle(substr($tecnologia->nombre, 0, 31));
 
@@ -157,6 +196,21 @@ class InventarioListado extends Component
             $sheet->setCellValue('B1', 'Descripción');
 
             $this->llenarHojaTecnologiaRango($sheet, $tecnologia);
+
+            $hojaCreada = true;
+        }
+
+        if (!$hojaCreada) {
+            $this->dispatch('swal', [
+                'icon' => 'warning',
+                'title' => 'Sin registros',
+                'text' => 'No hay reportes de inventario para ninguna de las tecnologías en el rango seleccionado.',
+                'position' => 'top-end',
+                'toast' => true,
+                'timer' => 3500,
+                'showConfirmButton' => false,
+            ]);
+            return null;
         }
 
         $writer = new Xlsx($spreadsheet);
@@ -175,7 +229,6 @@ class InventarioListado extends Component
     {
         $materiales = $tecnologia->materiales()->orderBy('materiales.id')->get(['materiales.id', 'codigo', 'descripcion']);
 
-        // Obtenemos los inventarios dentro del rango
         $inventarios = InventarioControl::query()
             ->where('tecnologia_id', $tecnologia->id)
             ->whereDate('fecha_inventario', '>=', $this->excel_fecha_desde)
@@ -194,14 +247,20 @@ class InventarioListado extends Component
         foreach ($inventarios as $inventario) {
             $letra = Coordinate::stringFromColumnIndex($col);
             $nombreCuadrilla = $inventario->cuadrilla->cua_nombre ?? 'Sin cuadrilla';
-            $fechaFmt = \Carbon\Carbon::parse($inventario->fecha_inventario)->format('d/m/Y');
-            
-            // Encabezado con Nombre + Fecha para identificar qué columna corresponde a cuál registro
-            $sheet->setCellValue($letra . '1', $nombreCuadrilla . ' (' . $fechaFmt . ')');
+            $orden = $inventario->observaciones;
+            $tipo_actividad = $inventario->tipoActividad->nombre;
+            $fechaFmt = Carbon::parse($inventario->fecha_inventario)->format('d/m/Y');
+            $textoCabecera = $nombreCuadrilla . " (" . $fechaFmt . ")\n" .
+                "Orden: " . $orden . "\n" .
+                "Actividad: " . $tipo_actividad;
+            $sheet->setCellValue($letra . '1', $textoCabecera);
+            $sheet->getStyle($letra . '1')->getAlignment()->setWrapText(true);
+            $sheet->getStyle($letra . '1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($letra . '1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getRowDimension(1)->setRowHeight(50);
             $stockPorColumna[$letra] = $inventario->detalles->pluck('stock_final', 'material_id');
             $col++;
         }
-
         $fila = 2;
         foreach ($materiales as $material) {
             $sheet->setCellValue('A' . $fila, $material->codigo);
@@ -241,34 +300,16 @@ class InventarioListado extends Component
 
         $sheet->freezePane('C2');
     }
-
-    #[Computed]
-    public function grupos()
-    {
-        return Grupo::select('id', 'nombre')->orderBy('nombre')->get();
-    }
-
-    #[Computed]
-    public function tecnologias()
-    {
-        return Tecnologia::select('id', 'nombre')->orderBy('nombre')->get();
-    }
-
-    #[Computed]
-    public function cuadrillas()
-    {
-        return Cuadrilla::select('id', 'cua_nombre')->orderBy('cua_nombre')->get();
-    }
-
     public function render()
     {
         $inventarios = InventarioControl::query()
-            ->with(['grupo:id,nombre', 'tecnologia:id,nombre', 'cuadrilla:id,cua_nombre'])
+            ->with(['grupo:id,nombre', 'tecnologia:id,nombre', 'cuadrilla:id,cua_nombre', 'tipoActividad:id,nombre'])
             ->when($this->fecha_desde, fn($q) => $q->whereDate('fecha_inventario', '>=', $this->fecha_desde))
             ->when($this->fecha_hasta, fn($q) => $q->whereDate('fecha_inventario', '<=', $this->fecha_hasta))
             ->when($this->grupo_id, fn($q) => $q->where('grupo_id', $this->grupo_id))
             ->when($this->tecnologia_id, fn($q) => $q->where('tecnologia_id', $this->tecnologia_id))
             ->when($this->cuadrilla_id, fn($q) => $q->where('cuadrilla_id', $this->cuadrilla_id))
+            ->when($this->tipo_actividad_id, fn($q) => $q->where('tipo_actividad_id', $this->tipo_actividad_id)) // 5. Filtro condicional
             ->when($this->buscar, function ($q) {
                 $q->whereHas('cuadrilla', fn($q) => $q->where('cua_nombre', 'like', '%' . $this->buscar . '%'));
             })

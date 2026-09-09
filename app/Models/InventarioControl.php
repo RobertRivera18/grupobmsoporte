@@ -12,7 +12,8 @@ class InventarioControl extends Model
         'tecnologia_id',
         'cuadrilla_id',
         'fecha_inventario',
-        'observaciones'
+        'observaciones',
+        'tipo_actividad_id'
     ];
 
     public function grupo()
@@ -35,5 +36,9 @@ class InventarioControl extends Model
     public function detalles()
     {
         return $this->hasMany(InventarioMaterialControl::class, 'inventario_control_id');
+    }
+    public function tipoActividad()
+    {
+        return $this->belongsTo(TipoActividad::class, 'tipo_actividad_id');
     }
 }

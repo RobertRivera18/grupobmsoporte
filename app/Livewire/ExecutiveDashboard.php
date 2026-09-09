@@ -20,6 +20,8 @@ class ExecutiveDashboard extends Component
         'anual'      => [12],
     ];
 
+    private const PANEL_CACHE_SEGUNDOS = 30;
+
     public function mount()
     {
         $this->selectedIndicadorId = DB::table('indicadores')
@@ -80,60 +82,67 @@ class ExecutiveDashboard extends Component
         return $query;
     }
 
+    /**
+     * Sufijo de cache determinado por los filtros activos. Todo lo que no
+     * dependa del indicador seleccionado se cachea con esta clave.
+     */
+    private function panelCacheSufijo(): string
+    {
+        return "{$this->selectedAnio}:{$this->selectedArea}:{$this->selectedFrecuencia}";
+    }
+
+    private function panelCacheTtl()
+    {
+        return now()->addSeconds(self::PANEL_CACHE_SEGUNDOS);
+    }
     private function reconciliarIndicadorSeleccionado()
     {
-        $query = $this->baseIndicadoresAnioQuery();
+        $idsValidos = $this->baseIndicadoresAnioQuery()
+            ->orderBy('i.id')
+            ->pluck('i.id');
 
-        $existe = (clone $query)->where('i.id', $this->selectedIndicadorId)->exists();
-
-        if (!$existe) {
-            $this->selectedIndicadorId = $query->orderBy('i.id')->value('i.id');
+        if (!$idsValidos->contains($this->selectedIndicadorId)) {
+            $this->selectedIndicadorId = $idsValidos->first();
         }
     }
 
-    /**
-     * Cumplimiento global, indicadores en rojo y semáforo se calculaban
-     * antes en 3 queries independientes que recorrían la misma tabla con
-     * el mismo where. Aquí se resuelven en UNA sola pasada con agregación
-     * condicional.
-     */
     private function calcularMetricasGlobales(): object
     {
-        $row = $this->baseIndicadoresAnioQuery()
-            ->selectRaw("
-                AVG(CASE WHEN ia.meta > 0
-                    THEN (CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) * 100
-                END) as cumplimiento_global,
+        $data = Cache::remember(
+            "dashboard:metricas:{$this->panelCacheSufijo()}",
+            $this->panelCacheTtl(),
+            function () {
+                $sub = $this->baseIndicadoresAnioQuery()->selectRaw("
+                    ia.resultado_obtenido,
+                    ia.meta,
+                    CASE WHEN ia.meta > 0
+                        THEN (CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta)
+                    END as ratio
+                ");
 
-                SUM(CASE WHEN ia.resultado_obtenido < ia.meta THEN 1 ELSE 0 END) as en_rojo,
+                $row = DB::query()->fromSub($sub, 't')
+                    ->selectRaw("
+                        AVG(ratio) * 100 as cumplimiento_global,
+                        SUM(CASE WHEN resultado_obtenido < meta THEN 1 ELSE 0 END) as en_rojo,
+                        SUM(CASE WHEN ratio >= 1 THEN 1 ELSE 0 END) as en_meta,
+                        SUM(CASE WHEN ratio BETWEEN 0.85 AND 0.999999 THEN 1 ELSE 0 END) as en_riesgo,
+                        SUM(CASE WHEN ratio < 0.85 THEN 1 ELSE 0 END) as critico
+                    ")
+                    ->first();
 
-                SUM(CASE WHEN ia.meta > 0
-                    AND (CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) >= 1
-                    THEN 1 ELSE 0 END) as en_meta,
+                return [
+                    'cumplimiento_global' => (float) ($row->cumplimiento_global ?? 0),
+                    'en_rojo'             => (int) ($row->en_rojo ?? 0),
+                    'en_meta'             => (int) ($row->en_meta ?? 0),
+                    'en_riesgo'           => (int) ($row->en_riesgo ?? 0),
+                    'critico'             => (int) ($row->critico ?? 0),
+                ];
+            }
+        );
 
-                SUM(CASE WHEN ia.meta > 0
-                    AND (CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) BETWEEN 0.85 AND 0.999999
-                    THEN 1 ELSE 0 END) as en_riesgo,
-
-                SUM(CASE WHEN ia.meta > 0
-                    AND (CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) < 0.85
-                    THEN 1 ELSE 0 END) as critico
-            ")
-            ->first();
-
-        return (object) [
-            'cumplimiento_global' => (float) ($row->cumplimiento_global ?? 0),
-            'en_rojo'             => (int) ($row->en_rojo ?? 0),
-            'en_meta'             => (int) ($row->en_meta ?? 0),
-            'en_riesgo'           => (int) ($row->en_riesgo ?? 0),
-            'critico'             => (int) ($row->critico ?? 0),
-        ];
+        return (object) $data;
     }
 
-    /**
-     * Catálogos casi estáticos: se cachean para no golpear la BD en cada
-     * render (cada interacción de Livewire vuelve a ejecutar render()).
-     */
     private function catalogos(): array
     {
         return [
@@ -146,28 +155,36 @@ class ExecutiveDashboard extends Component
         ];
     }
 
+
     private function calcularHeatmap()
     {
-        $heatmapQuery = DB::table('indicadores as i')
-            ->join('indicadores_anio as ia', 'i.id', '=', 'ia.indicador_id')
-            ->leftJoin('seguimientos as s', 'ia.id', '=', 's.indicador_anio_id')
-            ->leftJoin('frecuencias_indicadores as f', 'i.frecuencia_id', '=', 'f.id')
-            ->select(
-                'i.id as indicador_id',
-                'i.nombre as indicador_nombre',
-                'i.area_id',
-                'ia.meta',
-                'ia.resultado_obtenido',
-                'f.nombre as frecuencia_nombre',
-                's.mes',
-                's.valor'
-            )
-            ->where('ia.anio', $this->selectedAnio);
+        return Cache::remember(
+            "dashboard:heatmap:{$this->panelCacheSufijo()}",
+            $this->panelCacheTtl(),
+            function () {
+                $heatmapQuery = DB::table('indicadores as i')
+                    ->join('indicadores_anio as ia', 'i.id', '=', 'ia.indicador_id')
+                    ->leftJoin('seguimientos as s', 'ia.id', '=', 's.indicador_anio_id')
+                    ->leftJoin('frecuencias_indicadores as f', 'i.frecuencia_id', '=', 'f.id')
+                    ->select(
+                        'i.id as indicador_id',
+                        'i.nombre as indicador_nombre',
+                        'i.area_id',
+                        'ia.meta',
+                        'ia.resultado_obtenido',
+                        'f.nombre as frecuencia_nombre',
+                        's.mes',
+                        's.valor'
+                    )
+                    ->where('ia.anio', $this->selectedAnio);
 
-        $this->aplicarFiltros($heatmapQuery);
+                $this->aplicarFiltros($heatmapQuery);
 
-        return $heatmapQuery->get()->groupBy('indicador_id');
+                return $heatmapQuery->get()->groupBy('indicador_id');
+            }
+        );
     }
+
 
     private function calcularSerieIndicador(): array
     {
@@ -188,29 +205,38 @@ class ExecutiveDashboard extends Component
 
         $mesesAplicables = $this->mesesAplicables($indicadorInfo->frecuencia_nombre ?? null);
 
-        // Traemos año actual y año anterior en una sola consulta
-        // (antes eran dos queries separadas a indicadores_anio).
-        $aniosData = DB::table('indicadores_anio')
-            ->where('indicador_id', $this->selectedIndicadorId)
-            ->whereIn('anio', [$this->selectedAnio, $this->selectedAnio - 1])
-            ->get()
-            ->keyBy('anio');
+        $cacheKey = "dashboard:serie:{$this->selectedIndicadorId}:{$this->selectedAnio}";
 
-        $indAnioActual = $aniosData->get($this->selectedAnio);
-        $indAnioAnt = $aniosData->get($this->selectedAnio - 1);
+        ['actual' => $indAnioActual, 'anterior' => $indAnioAnt, 'seguimientos' => $seguimientos] =
+            Cache::remember($cacheKey, $this->panelCacheTtl(), function () {
+                // Traemos año actual y año anterior en una sola consulta.
+                $aniosData = DB::table('indicadores_anio')
+                    ->where('indicador_id', $this->selectedIndicadorId)
+                    ->whereIn('anio', [$this->selectedAnio, $this->selectedAnio - 1])
+                    ->get()
+                    ->keyBy('anio');
 
-        $idsAnio = array_filter([
-            $indAnioActual->id ?? null,
-            $indAnioAnt->id ?? null,
-        ]);
+                $indAnioActual = $aniosData->get($this->selectedAnio);
+                $indAnioAnt = $aniosData->get($this->selectedAnio - 1);
 
-        // Un solo query a seguimientos para ambos años, en vez de dos.
-        $seguimientos = empty($idsAnio)
-            ? collect()
-            : DB::table('seguimientos')
-                ->whereIn('indicador_anio_id', $idsAnio)
-                ->get()
-                ->groupBy('indicador_anio_id');
+                $idsAnio = array_filter([
+                    $indAnioActual->id ?? null,
+                    $indAnioAnt->id ?? null,
+                ]);
+
+                $seguimientos = empty($idsAnio)
+                    ? collect()
+                    : DB::table('seguimientos')
+                    ->whereIn('indicador_anio_id', $idsAnio)
+                    ->get()
+                    ->groupBy('indicador_anio_id');
+
+                return [
+                    'actual' => $indAnioActual,
+                    'anterior' => $indAnioAnt,
+                    'seguimientos' => $seguimientos,
+                ];
+            });
 
         if ($indAnioActual) {
             $metaActual = $indAnioActual->meta;
@@ -238,48 +264,80 @@ class ExecutiveDashboard extends Component
         return [$indicadorInfo, $chartActual, $chartAnterior, $metaActual];
     }
 
-    public function render()
+
+    private function calcularRankingAreas()
     {
-        $catalogos = $this->catalogos();
-        $metricas = $this->calcularMetricasGlobales();
-        $heatmapData = $this->calcularHeatmap();
+        return Cache::remember(
+            "dashboard:ranking:{$this->panelCacheSufijo()}",
+            $this->panelCacheTtl(),
+            function () {
+                $rankingQuery = DB::table('areas as a')
+                    ->join('indicadores as i', 'a.id', '=', 'i.area_id')
+                    ->join('indicadores_anio as ia', 'i.id', '=', 'ia.indicador_id')
+                    ->where('ia.anio', $this->selectedAnio)
+                    ->where('ia.meta', '>', 0);
 
-        [$indicadorInfo, $chartActual, $chartAnterior, $metaActual] = $this->calcularSerieIndicador();
+                if ($this->selectedArea !== 'todas') {
+                    $rankingQuery->where('a.id', $this->selectedArea);
+                }
+                if ($this->selectedFrecuencia !== 'todas') {
+                    $rankingQuery->where('i.frecuencia_id', $this->selectedFrecuencia);
+                }
 
-        $rankingQuery = DB::table('areas as a')
-            ->join('indicadores as i', 'a.id', '=', 'i.area_id')
-            ->join('indicadores_anio as ia', 'i.id', '=', 'ia.indicador_id')
-            ->where('ia.anio', $this->selectedAnio)
-            ->where('ia.meta', '>', 0);
+                return $rankingQuery
+                    ->groupBy('a.id', 'a.nombre')
+                    ->select('a.nombre', DB::raw('ROUND(AVG((CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) * 100), 1) as promedio'))
+                    ->orderByDesc('promedio')
+                    ->get();
+            }
+        );
+    }
 
-        if ($this->selectedArea !== 'todas') {
-            $rankingQuery->where('a.id', $this->selectedArea);
-        }
-        if ($this->selectedFrecuencia !== 'todas') {
-            $rankingQuery->where('i.frecuencia_id', $this->selectedFrecuencia);
-        }
 
-        $rankingAreas = $rankingQuery
-            ->groupBy('a.id', 'a.nombre')
-            ->select('a.nombre', DB::raw('ROUND(AVG((CAST(ia.resultado_obtenido AS DECIMAL(10,2)) / ia.meta) * 100), 1) as promedio'))
-            ->orderByDesc('promedio')
-            ->get();
+    private function calcularMacroMensual(): array
+    {
+        $macroMensual = Cache::remember(
+            "dashboard:macro:{$this->panelCacheSufijo()}",
+            $this->panelCacheTtl(),
+            function () {
+                $macroQuery = DB::table('seguimientos as s')
+                    ->join('indicadores_anio as ia', 's.indicador_anio_id', '=', 'ia.id')
+                    ->join('indicadores as i', 'i.id', '=', 'ia.indicador_id')
+                    ->where('ia.anio', $this->selectedAnio);
+                $this->aplicarFiltros($macroQuery);
 
-        $macroQuery = DB::table('seguimientos as s')
-            ->join('indicadores_anio as ia', 's.indicador_anio_id', '=', 'ia.id')
-            ->join('indicadores as i', 'i.id', '=', 'ia.indicador_id')
-            ->where('ia.anio', $this->selectedAnio);
-        $this->aplicarFiltros($macroQuery);
-
-        $macroMensual = $macroQuery
-            ->groupBy('s.mes')
-            ->select('s.mes', DB::raw('SUM(s.valor) as total'))
-            ->pluck('total', 'mes');
+                return $macroQuery
+                    ->groupBy('s.mes')
+                    ->select('s.mes', DB::raw('SUM(s.valor) as total'))
+                    ->pluck('total', 'mes')
+                    ->toArray();
+            }
+        );
 
         $macroMensualData = array_fill(0, 12, 0);
         foreach (range(1, 12) as $m) {
             $macroMensualData[$m - 1] = isset($macroMensual[$m]) ? (float) $macroMensual[$m] : 0;
         }
+
+        return $macroMensualData;
+    }
+
+
+    public static function flushDashboardCache(?int $anio = null): void
+    {
+        if ($anio === null) {
+            return;
+        }
+    }
+
+    public function render()
+    {
+        $catalogos = $this->catalogos();
+        $metricas = $this->calcularMetricasGlobales();
+        $heatmapData = $this->calcularHeatmap();
+        [$indicadorInfo, $chartActual, $chartAnterior, $metaActual] = $this->calcularSerieIndicador();
+        $rankingAreas = $this->calcularRankingAreas();
+        $macroMensualData = $this->calcularMacroMensual();
 
         $this->dispatch('update-executive-charts', [
             'interanual' => [

@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,8 @@ class Show extends Component
     public float $percentage = 0;
     public bool $passed = false;
     public ?QuizAttempt $attempt = null;
+    public ?QuizAttempt $activeAttempt = null;
+    public ?string $expiresAt = null;
 
     public bool $showReview = false;
 
@@ -40,17 +43,17 @@ class Show extends Component
         $this->course = $course;
         $this->quiz = $quiz;
 
-        $attempts = QuizAttempt::where('user_id', Auth::id())
+        $completedAttempts = QuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $quiz->id)
             ->where('status', 'completed')
             ->get();
 
-        if ($attempts->isNotEmpty()) {
+        if ($completedAttempts->isNotEmpty()) {
             $this->isFinished = true;
 
             // Obtener el intento con el porcentaje más alto (nota prevaleciente)
-            $bestAttempt = $attempts->sortByDesc('percentage')->first();
-            $latestAttempt = $attempts->sortByDesc('created_at')->first();
+            $bestAttempt = $completedAttempts->sortByDesc('percentage')->first();
+            $latestAttempt = $completedAttempts->sortByDesc('created_at')->first();
 
             $this->percentage = (float) $bestAttempt->percentage;
             $this->score = (float) $bestAttempt->score;
@@ -58,6 +61,46 @@ class Show extends Component
 
             // Cargar por defecto la revisión del último intento
             $this->loadAttemptForReview($latestAttempt);
+            $this->loadQuizQuestions();
+            return;
+        }
+
+        // Si el cuestionario tiene límite de tiempo, gestionar intento activo
+        if ($this->quiz->time_limit) {
+            $activeAttempt = QuizAttempt::where('user_id', Auth::id())
+                ->where('quiz_id', $quiz->id)
+                ->where('status', 'in_progress')
+                ->first();
+
+            $previousAttemptsCount = $completedAttempts->count();
+
+            if (!$activeAttempt) {
+                if ($this->quiz->max_attempts && $previousAttemptsCount >= $this->quiz->max_attempts) {
+                    $this->isFinished = true;
+                    $this->loadQuizQuestions();
+                    return;
+                }
+
+                // Crear intento en curso
+                $activeAttempt = QuizAttempt::create([
+                    'quiz_id' => $this->quiz->id,
+                    'user_id' => Auth::id(),
+                    'attempt_number' => $previousAttemptsCount + 1,
+                    'started_at' => now(),
+                    'status' => 'in_progress',
+                ]);
+            }
+
+            $this->activeAttempt = $activeAttempt;
+            $startTime = Carbon::parse($activeAttempt->started_at);
+            $expirationTime = $startTime->copy()->addMinutes((int)$this->quiz->time_limit);
+
+            if (now()->greaterThan($expirationTime)) {
+                $this->autoSubmitAttempt($activeAttempt);
+                return;
+            }
+
+            $this->expiresAt = $expirationTime->toIso8601String();
         }
 
         $this->loadQuizQuestions();
@@ -178,111 +221,158 @@ class Show extends Component
         $questions = $this->quiz->questions;
         if ($questions->isEmpty()) return;
 
-        $previousAttemptsCount = QuizAttempt::where('user_id', Auth::id())
+        $completedAttemptsCount = QuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $this->quiz->id)
             ->where('status', 'completed')
             ->count();
 
-        if ($this->quiz->max_attempts && $previousAttemptsCount >= $this->quiz->max_attempts) {
+        if ($this->quiz->max_attempts && $completedAttemptsCount >= $this->quiz->max_attempts && !$this->activeAttempt) {
             session()->flash('error', 'Has alcanzado el límite máximo de intentos permitidos.');
             return;
         }
 
-        DB::transaction(function () use ($questions, $previousAttemptsCount) {
-            $totalPointsPossible = 0;
-            $earnedPoints = 0;
-            $answersToInsert = [];
+        DB::transaction(function () use ($completedAttemptsCount) {
+            if ($this->quiz->time_limit && $this->activeAttempt) {
+                $attempt = $this->activeAttempt;
+            } else {
+                $attempt = QuizAttempt::create([
+                    'quiz_id' => $this->quiz->id,
+                    'user_id' => Auth::id(),
+                    'attempt_number' => $completedAttemptsCount + 1,
+                    'started_at' => now(),
+                    'status' => 'in_progress',
+                ]);
+            }
 
-            foreach ($questions as $question) {
-                $questionPoints = (float) ($question->pivot->points ?? $question->points ?? 1);
-                $totalPointsPossible += $questionPoints;
+            $this->processAndCompleteAttempt($attempt);
+        });
+    }
 
-                $selected = $this->answers[$question->id] ?? null;
-                $isCorrect = false;
-                $pointsEarnedForQuestion = 0;
+    private function autoSubmitAttempt(QuizAttempt $attempt)
+    {
+        DB::transaction(function () use ($attempt) {
+            $this->processAndCompleteAttempt($attempt);
+        });
 
-                $correctOptionIds = $question->options->where('is_correct', true)->pluck('id')->map(fn($id) => (int)$id)->toArray();
+        session()->flash('error', 'El tiempo límite ha expirado. Tu evaluación se ha enviado automáticamente.');
+    }
 
-                if (!is_null($selected)) {
-                    if (is_array($selected)) {
-                        $selectedInts = array_map('intval', $selected);
-                        sort($selectedInts);
-                        sort($correctOptionIds);
-                        if ($selectedInts === $correctOptionIds) {
-                            $isCorrect = true;
-                        }
-                    } else {
-                        if (in_array((int)$selected, $correctOptionIds)) {
-                            $isCorrect = true;
-                        }
+    private function processAndCompleteAttempt(QuizAttempt $attempt)
+    {
+        $questions = $this->quiz->questions;
+        $totalPointsPossible = 0;
+        $earnedPoints = 0;
+        $answersToInsert = [];
+
+        foreach ($questions as $question) {
+            $questionPoints = (float) ($question->pivot->points ?? $question->points ?? 1);
+            $totalPointsPossible += $questionPoints;
+
+            $selected = $this->answers[$question->id] ?? null;
+            $isCorrect = false;
+            $pointsEarnedForQuestion = 0;
+
+            $correctOptionIds = $question->options->where('is_correct', true)->pluck('id')->map(fn($id) => (int)$id)->toArray();
+
+            if (!is_null($selected)) {
+                if (is_array($selected)) {
+                    $selectedInts = array_map('intval', $selected);
+                    sort($selectedInts);
+                    sort($correctOptionIds);
+                    if ($selectedInts === $correctOptionIds) {
+                        $isCorrect = true;
                     }
-
-                    if ($isCorrect) {
-                        $pointsEarnedForQuestion = $questionPoints;
-                        $earnedPoints += $questionPoints;
+                } else {
+                    if (in_array((int)$selected, $correctOptionIds)) {
+                        $isCorrect = true;
                     }
                 }
 
-                $answersToInsert[] = [
-                    'question_id' => $question->id,
-                    'answer' => is_array($selected) ? json_encode(array_values($selected)) : ($selected ? (string) $selected : null),
-                    'is_correct' => $isCorrect,
-                    'points' => $pointsEarnedForQuestion,
-                ];
+                if ($isCorrect) {
+                    $pointsEarnedForQuestion = $questionPoints;
+                    $earnedPoints += $questionPoints;
+                }
             }
 
-            $calculatedPercentage = $totalPointsPossible > 0
-                ? round(($earnedPoints / $totalPointsPossible) * 100, 2)
-                : 0;
+            $answersToInsert[] = [
+                'question_id' => $question->id,
+                'answer' => is_array($selected) ? json_encode(array_values($selected)) : ($selected ? (string) $selected : null),
+                'is_correct' => $isCorrect,
+                'points' => $pointsEarnedForQuestion,
+            ];
+        }
 
-            $passingScore = (float) ($this->quiz->passing_score ?? 70);
-            $isPassed = $calculatedPercentage >= $passingScore;
+        $calculatedPercentage = $totalPointsPossible > 0
+            ? round(($earnedPoints / $totalPointsPossible) * 100, 2)
+            : 0;
 
-            $newAttempt = QuizAttempt::create([
-                'quiz_id' => $this->quiz->id,
-                'user_id' => Auth::id(),
-                'attempt_number' => $previousAttemptsCount + 1,
-                'started_at' => now(),
-                'finished_at' => now(),
-                'score' => $earnedPoints,
-                'percentage' => $calculatedPercentage,
-                'passed' => $isPassed,
-                'status' => 'completed',
-            ]);
+        $passingScore = (float) ($this->quiz->passing_score ?? 70);
+        $isPassed = $calculatedPercentage >= $passingScore;
 
-            foreach ($answersToInsert as $ans) {
-                $newAttempt->answers()->create($ans);
-            }
+        $attempt->update([
+            'finished_at' => now(),
+            'score' => $earnedPoints,
+            'percentage' => $calculatedPercentage,
+            'passed' => $isPassed,
+            'status' => 'completed',
+        ]);
 
-            $allAttempts = QuizAttempt::where('user_id', Auth::id())
-                ->where('quiz_id', $this->quiz->id)
-                ->where('status', 'completed')
-                ->get();
+        $attempt->answers()->delete();
+        foreach ($answersToInsert as $ans) {
+            $attempt->answers()->create($ans);
+        }
 
-            $bestAttempt = $allAttempts->sortByDesc('percentage')->first();
+        $allAttempts = QuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $this->quiz->id)
+            ->where('status', 'completed')
+            ->get();
 
-            $this->percentage = (float) $bestAttempt->percentage;
-            $this->score = (float) $bestAttempt->score;
-            $this->passed = (bool) $bestAttempt->passed;
+        $bestAttempt = $allAttempts->sortByDesc('percentage')->first();
 
-            $this->attempt = $newAttempt;
-            $this->isFinished = true;
-        });
+        $this->percentage = (float) $bestAttempt->percentage;
+        $this->score = (float) $bestAttempt->score;
+        $this->passed = (bool) $bestAttempt->passed;
+
+        $this->attempt = $attempt;
+        $this->isFinished = true;
+        $this->activeAttempt = null;
+        $this->expiresAt = null;
     }
 
     public function retry()
     {
-        $previousAttemptsCount = QuizAttempt::where('user_id', Auth::id())
+        $completedAttemptsCount = QuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $this->quiz->id)
             ->where('status', 'completed')
             ->count();
 
-        if ($this->quiz->max_attempts && $previousAttemptsCount >= $this->quiz->max_attempts) {
+        if ($this->quiz->max_attempts && $completedAttemptsCount >= $this->quiz->max_attempts) {
             session()->flash('error', 'No te quedan más intentos disponibles para esta evaluación.');
             return;
         }
 
-        $this->reset(['answers', 'currentQuestionIndex', 'isFinished', 'showReview']);
+        // Limpiar intentos previos en curso que no se terminaron
+        QuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $this->quiz->id)
+            ->where('status', 'in_progress')
+            ->delete();
+
+        $this->reset(['answers', 'currentQuestionIndex', 'isFinished', 'showReview', 'expiresAt', 'activeAttempt']);
+
+        // Si hay límite de tiempo, crear el intento en curso para el nuevo intento
+        if ($this->quiz->time_limit) {
+            $this->activeAttempt = QuizAttempt::create([
+                'quiz_id' => $this->quiz->id,
+                'user_id' => Auth::id(),
+                'attempt_number' => $completedAttemptsCount + 1,
+                'started_at' => now(),
+                'status' => 'in_progress',
+            ]);
+
+            $expirationTime = now()->addMinutes((int)$this->quiz->time_limit);
+            $this->expiresAt = $expirationTime->toIso8601String();
+        }
+
         $this->loadQuizQuestions();
     }
 

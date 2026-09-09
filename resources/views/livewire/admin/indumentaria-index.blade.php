@@ -1,6 +1,5 @@
 <div class="space-y-6">
-    {{-- Cargar ApexCharts CDN si no lo tienes en tu layout global --}}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
 
     @if (session()->has('message'))
         <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between">

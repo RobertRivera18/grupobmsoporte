@@ -75,6 +75,20 @@
                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+                <div>
+                    <label for="tipo_actividad_id" class="block text-sm font-medium text-gray-700">Tipo de
+                        Actividad</label>
+                    <select wire:model="tipo_actividad_id" id="tipo_actividad_id"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">Seleccione...</option>
+                        @foreach ($tipoActividades as $tipo)
+                            <option value="{{ $tipo->id }}">{{ $tipo->nombre }}</option>
+                        @endforeach
+                    </select>
+                    @error('tipo_actividad_id')
+                        <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
+                    @enderror
+                </div>
 
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-slate-700">Fecha del inventario</label>
@@ -399,7 +413,7 @@
                     <!-- Campo Observaciones -->
                     <div class="pt-2">
                         <label for="observaciones" class="block text-sm font-medium text-gray-700 mb-1">
-                            Observaciones (Opcional)
+                           Ingrese Numero de Orden
                         </label>
                         <textarea id="observaciones" wire:model="observaciones" rows="3"
                             placeholder="Ingrese comentarios o detalles adicionales..."
@@ -429,33 +443,33 @@
         </div>
     @endif
 
-@push('js')
-    <script>
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('swal', (data) => {
-                const payload = Array.isArray(data) ? data[0] : data;
-                Swal.fire({
-                    icon: payload?.icon || 'info',
-                    title: payload?.title || '',
-                    text: payload?.text || null,
-                    html: payload?.html || null,
-                    confirmButtonColor: '#3085d6'
+    @push('js')
+        <script>
+            document.addEventListener('livewire:init', () => {
+                Livewire.on('swal', (data) => {
+                    const payload = Array.isArray(data) ? data[0] : data;
+                    Swal.fire({
+                        icon: payload?.icon || 'info',
+                        title: payload?.title || '',
+                        text: payload?.text || null,
+                        html: payload?.html || null,
+                        confirmButtonColor: '#3085d6'
+                    });
                 });
-            });
 
-            Livewire.on('swal:success', (data) => {
-                const payload = Array.isArray(data) ? data[0] : data;
-                Swal.fire({
-                    icon: payload?.icon || 'success',
-                    title: payload?.title || '¡Bien hecho!',
-                    text: payload?.text || 'Operación realizada con éxito',
-                    position: 'top-end',
-                    toast: true,
-                    timer: 3000,
-                    showConfirmButton: false
+                Livewire.on('swal:success', (data) => {
+                    const payload = Array.isArray(data) ? data[0] : data;
+                    Swal.fire({
+                        icon: payload?.icon || 'success',
+                        title: payload?.title || '¡Bien hecho!',
+                        text: payload?.text || 'Operación realizada con éxito',
+                        position: 'top-end',
+                        toast: true,
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 });
             });
-        });
-    </script>
-@endpush
+        </script>
+    @endpush
 </div>
