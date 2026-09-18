@@ -45,16 +45,24 @@ class CrearDesvinculacion extends Component
             return;
         }
 
+        $puedeGestionarTTHH = auth()->user()->can('gestionarTalentoHumano', SolicitudDesvinculacion::class);
+        if (!$puedeGestionarTTHH && ($this->devolverCredencial || $this->devolverUniforme)) {
+            abort(403, 'Acci車n no autorizada: No tienes permisos para gestionar credenciales ni uniformes.');
+        }
+        $credencialFinal = $puedeGestionarTTHH ? $this->devolverCredencial : false;
+        $uniformeFinal   = $puedeGestionarTTHH ? $this->devolverUniforme : false;
+
         try {
-            DB::transaction(function () {
+            DB::transaction(function () use ($credencialFinal, $uniformeFinal) {
                 $solicitud = SolicitudDesvinculacion::create([
                     'user_id'             => $this->colaboradorId,
                     'cuadrilla_id'        => $this->cuadrilla?->id,
-                    'devolver_credencial' => $this->devolverCredencial,
-                    'devolver_uniforme'   => $this->devolverUniforme,
+                    'devolver_credencial' => $credencialFinal,
+                    'devolver_uniforme'   => $uniformeFinal,
                     'observaciones'       => $this->observaciones,
                     'etapa'               => 'sistemas',
                 ]);
+
                 $solicitud->load('user');
                 $admins = User::role('Admin')->get();
 
@@ -63,7 +71,7 @@ class CrearDesvinculacion extends Component
                 }
             });
 
-            session()->flash('success', 'Solicitud creada por TTHH. Pendiente de gestión por Sistemas.');
+            session()->flash('success', 'Solicitud creada correctamente.');
             return redirect()->route('admin.desvinculacion.index');
         } catch (\Exception $e) {
             $this->dispatch('error', message: 'Error al guardar: ' . $e->getMessage());

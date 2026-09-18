@@ -5,10 +5,7 @@ use App\Livewire\Student\Courses\Index;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Student\Lessons\Show as LessonShow;
 use App\Livewire\Student\Quizz\Show as QuizzShow;
-use App\Livewire\Student\Quizzes\Show as QuizShow;
-use App\Livewire\Student\Quizzes\Start as QuizStart;
-use App\Livewire\Student\Quizzes\Attempt as QuizAttempt;
-use App\Livewire\Student\Quizzes\Result as QuizResult;
+
 
 /*
 |--------------------------------------------------------------------------

@@ -77,23 +77,28 @@
                                     <span class="hidden sm:inline">Ver</span>
                                 </a>
 
-                                <button
-                                    @click="showForm = true"
-                                    wire:click="editIndicador({{ $indicador->id }})"
-                                    class="inline-flex items-center justify-center px-3 py-2 text-gray-600 hover:text-amber-600 hover:bg-amber-100/60 rounded-xl transition-all text-sm font-medium"
-                                    title="Editar">
-                                    <i class="fas fa-edit sm:mr-1.5"></i>
-                                    <span class="hidden sm:inline">Editar</span>
-                                </button>
 
-                                <button
-                                    wire:click="destroyIndicador({{ $indicador->id }})"
-                                    onclick="return confirm('¿Estás seguro de eliminar este indicador?')"
-                                    class="inline-flex items-center justify-center px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-100/60 rounded-xl transition-all text-sm font-medium"
-                                    title="Eliminar">
-                                    <i class="far fa-trash-alt sm:mr-1.5"></i>
-                                    <span class="hidden sm:inline">Eliminar</span>
-                                </button>
+                                @role('Admin')
+        <!-- Editar -->
+        <button
+            @click="showForm = true"
+            wire:click="editIndicador({{ $indicador->id }})"
+            class="inline-flex items-center justify-center px-3 py-2 text-gray-600 hover:text-amber-600 hover:bg-amber-100/60 rounded-xl transition-all text-sm font-medium"
+            title="Editar">
+            <i class="fas fa-edit sm:mr-1.5"></i>
+            <span class="hidden sm:inline">Editar</span>
+        </button>
+
+        <!-- Eliminar -->
+        <button
+            wire:click="destroyIndicador({{ $indicador->id }})"
+            onclick="return confirm('¿Estás seguro de eliminar este indicador?')"
+            class="inline-flex items-center justify-center px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-100/60 rounded-xl transition-all text-sm font-medium"
+            title="Eliminar">
+            <i class="far fa-trash-alt sm:mr-1.5"></i>
+            <span class="hidden sm:inline">Eliminar</span>
+        </button>
+    @endrole
                             </div>
 
                         </div>

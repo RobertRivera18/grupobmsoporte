@@ -23,113 +23,93 @@ class ReportController extends Controller
     }
 
 
-   public function edit(Report $reporte)
-{
-    $rol = Auth::user()->getRoleNames()->first();
-
-    // Construimos la base de la consulta
-   $query = Cuadrilla::with(['equipos', 'users'])
-        ->whereHas('equipos'); // Solo cuadrillas que tienen equipos asignados
-
-
-    // 🔹 Filtrar cuadrillas según el rol del usuario
-    if ($rol === 'operador1') {
-        $query->where('cua_ciudad', 1); // Guayaquil
-    } elseif ($rol === 'operador2') {
-        $query->where('cua_ciudad', 2); // Quito
-    }
-
-    // Ejecutar la consulta
-    $cuadrillas = $query->get();
-
-    // Cargar relaciones necesarias
-    $reporte->load('cuadrillas');
-
-    // Cuadrillas ya seleccionadas en este reporte
-    $cuadrillasSeleccionadas = $reporte->cuadrillas->pluck('id')->toArray();
-
-    // Retornar a la vista
-    return view('admin.reportes.edit', [
-        'reporte' => $reporte,
-        'cuadrillas' => $cuadrillas,
-        'cuadrillasSeleccionadas' => $cuadrillasSeleccionadas,
-        'rol' => $rol,
-    ]);
-}
-
-
-  public function update(Request $request, Report $reporte)
-{
-    $request->validate([
-        'seleccionadas'   => 'array',
-        'seleccionadas.*' => 'exists:cuadrillas,id',
-        'observaciones'   => 'array',
-    ]);
-
-    DB::transaction(function () use ($reporte, $request) {
-        $valorRecarga = 10.50;
+    public function edit(Report $reporte)
+    {
         $rol = Auth::user()->getRoleNames()->first();
 
-        // 🔹 Determinar qué cuadrillas son visibles para este usuario
-        $cuadrillasVisibles = Cuadrilla::query()
-            ->when($rol === 'operador1', fn($q) => $q->where('cua_ciudad', 1))
-            ->when($rol === 'operador2', fn($q) => $q->where('cua_ciudad', 2))
-            ->pluck('id')
-            ->toArray();
+        $query = Cuadrilla::with(['equipos', 'users'])
+            ->whereHas('equipos');
 
-        $seleccionadas = array_unique($request->seleccionadas ?? []);
-        $observacionesActuales = $reporte->detalles()
-            ->pluck('observacion', 'cuadrilla_id')
-            ->toArray();
 
-        $pivotData = [];
-
-        // 🔹 Crear o actualizar solo las cuadrillas seleccionadas
-        foreach ($seleccionadas as $cuadrillaId) {
-            $observacionNueva = $request->observaciones[$cuadrillaId] ?? null;
-            $observacionFinal = $observacionNueva !== null
-                ? $observacionNueva
-                : ($observacionesActuales[$cuadrillaId] ?? null);
-
-            $pivotData[$cuadrillaId] = [
-                'valor_recarga' => $valorRecarga,
-                'observacion'   => $observacionFinal,
-            ];
+        if ($rol === 'operador1') {
+            $query->where('cua_ciudad', 1);
+        } elseif ($rol === 'operador2') {
+            $query->where('cua_ciudad', 2);
         }
 
-        // 🔹 Obtener todas las cuadrillas actuales del reporte
-        $existentes = $reporte->cuadrillas()->pluck('cuadrilla_id')->toArray();
-
-        // 🔹 Cuadrillas que este operador puede tocar (visibles) y desmarcó
-        $desmarcadas = array_diff(
-            array_intersect($existentes, $cuadrillasVisibles),
-            $seleccionadas
-        );
-
-        // 🔹 Eliminar solo las desmarcadas visibles
-        if (!empty($desmarcadas)) {
-            $reporte->cuadrillas()->detach($desmarcadas);
-        }
-
-        // 🔹 Actualizar o mantener las demás cuadrillas
-        foreach ($pivotData as $id => $data) {
-            $reporte->cuadrillas()->syncWithoutDetaching([$id => $data]);
-        }
-
-        // 🔹 Recalcular total con base en todas las cuadrillas aún vinculadas
-        $total = $reporte->cuadrillas()->count() * $valorRecarga;
-        $reporte->update([
-            'total' => $total,
-            'fecha_registro' => now()->toDateString(),
+        $cuadrillas = $query->get();
+        $reporte->load('cuadrillas');
+        $cuadrillasSeleccionadas = $reporte->cuadrillas->pluck('id')->toArray();
+        return view('admin.reportes.edit', [
+            'reporte' => $reporte,
+            'cuadrillas' => $cuadrillas,
+            'cuadrillasSeleccionadas' => $cuadrillasSeleccionadas,
+            'rol' => $rol,
         ]);
-    });
-
-    return redirect()
-        ->route('admin.reportes.index')
-        ->with('success', 'Reporte actualizado correctamente.');
-}
+    }
 
 
+    public function update(Request $request, Report $reporte)
+    {
+        $request->validate([
+            'seleccionadas'   => 'array',
+            'seleccionadas.*' => 'exists:cuadrillas,id',
+            'observaciones'   => 'array',
+        ]);
 
-    public function show() {}
+        DB::transaction(function () use ($reporte, $request) {
+            $valorRecarga = 10.50;
+            $rol = Auth::user()->getRoleNames()->first();
+            $cuadrillasVisibles = Cuadrilla::query()
+                ->when($rol === 'operador1', fn($q) => $q->where('cua_ciudad', 1))
+                ->when($rol === 'operador2', fn($q) => $q->where('cua_ciudad', 2))
+                ->pluck('id')
+                ->toArray();
+
+            $seleccionadas = array_unique($request->seleccionadas ?? []);
+            $observacionesActuales = $reporte->detalles()
+                ->pluck('observacion', 'cuadrilla_id')
+                ->toArray();
+
+            $pivotData = [];
+            foreach ($seleccionadas as $cuadrillaId) {
+                $observacionNueva = $request->observaciones[$cuadrillaId] ?? null;
+                $observacionFinal = $observacionNueva !== null
+                    ? $observacionNueva
+                    : ($observacionesActuales[$cuadrillaId] ?? null);
+
+                $pivotData[$cuadrillaId] = [
+                    'valor_recarga' => $valorRecarga,
+                    'observacion'   => $observacionFinal,
+                ];
+            }
+            $existentes = $reporte->cuadrillas()->pluck('cuadrilla_id')->toArray();
+            $desmarcadas = array_diff(
+                array_intersect($existentes, $cuadrillasVisibles),
+                $seleccionadas
+            );
+            if (!empty($desmarcadas)) {
+                $reporte->cuadrillas()->detach($desmarcadas);
+            }
+            foreach ($pivotData as $id => $data) {
+                $reporte->cuadrillas()->syncWithoutDetaching([$id => $data]);
+            }
+            $total = $reporte->cuadrillas()->count() * $valorRecarga;
+            $reporte->update([
+                'total' => $total,
+                'fecha_registro' => now()->toDateString(),
+            ]);
+        });
+
+        return redirect()
+            ->route('admin.reportes.index')
+            ->with('success', 'Reporte actualizado correctamente.');
+    }
+
+
+
+    public function show(Report $reporte)
+    {
+        return view('admin.reportes.show', compact('reporte'));
+    }
 }

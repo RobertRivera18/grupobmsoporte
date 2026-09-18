@@ -67,7 +67,6 @@ class IndicadoresIndex extends Component
     {
         $this->validate();
 
-        // 1️⃣ Crear el indicador (solo datos principales)
         $indicador = $this->area->indicadores()->create([
             'nombre'         => $this->nombre,
             'responsable_id' => auth()->id(),
@@ -75,9 +74,7 @@ class IndicadoresIndex extends Component
             'frecuencia_id' => $this->frecuencia_id,
 
         ]);
-        // Opcional: si usas nombre distinto del campo "observacion" ajusta aquí
 
-        // 3️⃣ Reset y refresco
         $this->resetForm();
         $this->refreshIndicadores();
 
@@ -86,9 +83,7 @@ class IndicadoresIndex extends Component
     }
 
 
-    /* ===========================================
-       EDITAR INDICADOR (cargar datos en el form)
-    =========================================== */
+
     public function editIndicador($id)
     {
         $indicador = $this->area->indicadores()->find($id);
@@ -100,15 +95,12 @@ class IndicadoresIndex extends Component
 
         $this->editingIndicadorId = $indicador->id;
 
-        // 1️⃣ Datos principales del indicador
         $this->nombre = $indicador->nombre;
         $this->forma_calculo = $indicador->forma_calculo;
         $this->frecuencia_id = $indicador->frecuencia_id;
     }
 
-    /* ===========================================
-       ACTUALIZAR INDICADOR
-    =========================================== */
+ 
     public function update()
     {
         $this->validate();
@@ -134,16 +126,11 @@ class IndicadoresIndex extends Component
 
         $this->resetForm();
         $this->refreshIndicadores();
-
-        // Cerrar formulario
         $this->dispatch('close-form');
 
         session()->flash('message', 'Indicador actualizado correctamente.');
     }
 
-    /* ===========================================
-       RESETEAR FORMULARIO
-    =========================================== */
     public function resetForm()
     {
         $this->reset([
@@ -154,9 +141,6 @@ class IndicadoresIndex extends Component
         ]);
     }
 
-    /* ===========================================
-       RENDER
-    =========================================== */
     public function render()
     {
 

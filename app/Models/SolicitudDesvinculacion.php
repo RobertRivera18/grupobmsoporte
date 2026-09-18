@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class SolicitudDesvinculacion extends Model
 {
@@ -29,15 +30,11 @@ class SolicitudDesvinculacion extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-
-
-    // Relación con la cuadrilla
     public function cuadrilla(): BelongsTo
     {
         return $this->belongsTo(Cuadrilla::class, 'cuadrilla_id');
     }
 
-    // Relación con los equipos (detalles)
     public function equiposDetalle(): HasMany
     {
         return $this->hasMany(SolicitudDesvinculacionEquipo::class, 'solicitud_desvinculacion_id');

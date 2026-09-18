@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('inventario_control', function (Blueprint $table) {
-            $table->foreignId('tipo_actividad_id')->constrained('tipo_actividads')->onDelete('cascade');
+        Schema::table('questions', function (Blueprint $table) {
+            $table->string('category')->nullable()->after('status');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('inventario_control', function (Blueprint $table) {
-            
+        Schema::table('questions', function (Blueprint $table) {
+            //
         });
     }
 };

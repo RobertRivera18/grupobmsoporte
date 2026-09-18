@@ -11,7 +11,6 @@
         </p>
     </div>
 
-    <!-- ALERT SUCCESS -->
     @if (session('success'))
         <div class="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
             {{ session('success') }}
@@ -19,8 +18,6 @@
     @endif
 
     <form wire:submit.prevent="guardarIncidencia" class="space-y-6">
-
-        <!-- CÉDULA -->
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">
                 Cédula del usuario
@@ -47,8 +44,6 @@
                 <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
             @enderror
         </div>
-
-        <!-- USUARIO ENCONTRADO -->
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">
                 Usuario
@@ -68,8 +63,6 @@
                 </p>
             @endif
         </div>
-
-        <!-- NOMBRE -->
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">
                 Nombre de la incidencia

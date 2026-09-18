@@ -7,7 +7,6 @@ use App\Models\SolicitudDesvinculacionEquipo;
 use clsTinyButStrong;
 use Livewire\Component;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
 
@@ -59,119 +58,111 @@ class EditarDesvinculacion extends Component
 
     public function guardarDisposicion()
     {
-        DB::transaction(function () {
-            SolicitudDesvinculacionEquipo::where('solicitud_desvinculacion_id', $this->solicitud->id)->delete();
-            foreach ($this->equiposAsignados as $equipo) {
-                $destinoKey = $this->destinoEquipos[$equipo->id] ?? 'faltante';
-                $observacionEquipo = $this->observacionesEquipos[$equipo->id] ?? null;
+        SolicitudDesvinculacionEquipo::where('solicitud_desvinculacion_id', $this->solicitud->id)->delete();
 
-                SolicitudDesvinculacionEquipo::create([
-                    'solicitud_desvinculacion_id' => $this->solicitud->id,
-                    'equipo_id'                  => $equipo->id,
-                    'destino'                    => $destinoKey,
-                    'observaciones'              => $observacionEquipo,
-                ]);
-            }
-
-            $NUEVA_ETAPA = 'sistemas';
-            $this->solicitud->update([
-                'observaciones' => $this->observaciones,
-                'etapa'         => $NUEVA_ETAPA,
-            ]);
-
-            if ($this->solicitud->etapa === 'sistemas' && $this->solicitud->user) {
-                $this->solicitud->user->update([
-                    'estado' => 0,
-                ]);
-            }
-        });
-
-        $this->dispatch('swal', title: '¡Guardado!', text: 'Disposición y estado de usuario actualizados correctamente.', icon: 'success');
-    }
-
-
-
-
-    public function generarActa(string $tipoActa)
-    {
-        require_once app_path('Libraries/tbs_class.php');
-        require_once app_path('Libraries/tbs_plugin_opentbs.php');
-        $templateName = $tipoActa === 'descargo'
-            ? 'descargo_cuadrilla_equipo.docx'
-            : 'liberacion_cuadrilla_equipo.docx';
-
-        $templatePath = public_path('templates/' . $templateName);
-
-        if (!file_exists($templatePath)) {
-            $this->dispatch('error', message: "Plantilla {$templateName} no encontrada.");
-            return;
-        }
-
-        $cuadrilla = $this->solicitud->cuadrilla;
-
-        if (!$cuadrilla) {
-            $this->dispatch('error', message: 'Cuadrilla no encontrada.');
-            return;
-        }
-
-        $colaboradores = $cuadrilla->users->take(2)->values();
-        $nombres = $colaboradores->pluck('name')->toArray();
-        $cedulas = $colaboradores->pluck('cedula')->toArray();
-        $equipos = [];
         foreach ($this->equiposAsignados as $equipo) {
-            $observacionEquipo = $this->observacionesEquipos[$equipo->id]
-                ?? ($this->observaciones ?: 'Sin observaciones');
+            $destinoKey = $this->destinoEquipos[$equipo->id] ?? 'faltante';
+            $observacionEquipo = $this->observacionesEquipos[$equipo->id] ?? null;
 
-            $equipos[] = [
-                'descripcion' => $equipo->nombre ?? $equipo->descripcion ?? 'N/A',
-                'marca'       => $equipo->marca ?? 'N/A',
-                'modelo'      => $equipo->modelo ?? 'N/A',
-                'serie'       => $equipo->codigo ?? $equipo->serie ?? 'N/A',
-                'notas'       => $observacionEquipo,
-            ];
-        }
-        $minFilas = defined('self::MIN_FILAS_ACTA_DESCARGO') ? self::MIN_FILAS_ACTA_DESCARGO : 5;
-        while (count($equipos) < $minFilas) {
-            $equipos[] = [
-                'descripcion' => 'N/A',
-                'marca'       => 'N/A',
-                'modelo'      => 'N/A',
-                'serie'       => 'N/A',
-                'notas'       => 'N/A',
-            ];
-        }
-        $TBS = new \clsTinyButStrong();
-        $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
-        $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
-
-        $TBS->MergeField('fecha', now()->format('d/m/Y'));
-        $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? ($this->solicitud->user->name ?? 'N/A'));
-        $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? ($this->solicitud->user->cedula ?? 'N/A'));
-        $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
-        $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre ?? 'N/A');
-        $TBS->MergeField('usu.nombre', $cuadrilla->cua_nombre ?? 'N/A');
-
-        foreach ($equipos as $index => $equipo) {
-            $TBS->MergeField("equipos.descripcion_$index", $equipo['descripcion']);
-            $TBS->MergeField("equipos.marca_$index", $equipo['marca']);
-            $TBS->MergeField("equipos.modelo_$index", $equipo['modelo']);
-            $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
-            $TBS->MergeField("equipos.notas_$index", $equipo['notas']);
+            SolicitudDesvinculacionEquipo::create([
+                'solicitud_desvinculacion_id' => $this->solicitud->id,
+                'equipo_id'                  => $equipo->id,
+                'destino'                    => $destinoKey,
+                'observaciones'              => $observacionEquipo, // Guarda la observación específica
+            ]);
         }
 
-        $folderPath = public_path('actas/entrega_equiposUsuarios');
-        if (!file_exists($folderPath)) {
-            mkdir($folderPath, 0755, true);
-        }
+        $this->solicitud->update([
+            'observaciones' => $this->observaciones,
+            'etapa'         => 'completado'
+        ]);
 
-        $cleanName = str_replace(' ', '_', strtolower($cuadrilla->cua_nombre ?? 'cuadrilla'));
-        $prefijo   = $tipoActa === 'descargo' ? 'acta_descargo_' : 'acta_liberacion_';
-        $fileName  = $prefijo . $cleanName . '_' . now()->format('Ymd_His') . '.docx';
-        $savePath  = $folderPath . '/' . $fileName;
-        $TBS->Show(OPENTBS_FILE, $savePath);
-        return response()->download($savePath)->deleteFileAfterSend();
+        $this->dispatch('swal', title: '¡Guardado!', text: 'Disposición y observaciones registradas correctamente.', icon: 'success');
     }
+
+
+
+
+   public function generarActa(string $tipoActa)
+{
+    require_once app_path('Libraries/tbs_class.php');
+    require_once app_path('Libraries/tbs_plugin_opentbs.php');
+    $templateName = $tipoActa === 'descargo'
+        ? 'descargo_cuadrilla_equipo.docx'
+        : 'liberacion_cuadrilla_equipo.docx';
+
+    $templatePath = public_path('templates/' . $templateName);
+
+    if (!file_exists($templatePath)) {
+        $this->dispatch('error', message: "Plantilla {$templateName} no encontrada.");
+        return;
+    }
+
+    $cuadrilla = $this->solicitud->cuadrilla;
+
+    if (!$cuadrilla) {
+        $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+        return;
+    }
+
+    $colaboradores = $cuadrilla->users->take(2)->values();
+    $nombres = $colaboradores->pluck('name')->toArray();
+    $cedulas = $colaboradores->pluck('cedula')->toArray();
+    $equipos = [];
+    foreach ($this->equiposAsignados as $equipo) {
+        $observacionEquipo = $this->observacionesEquipos[$equipo->id]
+            ?? ($this->observaciones ?: 'Sin observaciones');
+
+        $equipos[] = [
+            'descripcion' => $equipo->nombre ?? $equipo->descripcion ?? 'N/A',
+            'marca'       => $equipo->marca ?? 'N/A',
+            'modelo'      => $equipo->modelo ?? 'N/A',
+            'serie'       => $equipo->codigo ?? $equipo->serie ?? 'N/A',
+            'notas'       => $observacionEquipo,
+        ];
+    }
+    $minFilas = defined('self::MIN_FILAS_ACTA_DESCARGO') ? self::MIN_FILAS_ACTA_DESCARGO : 5;
+    while (count($equipos) < $minFilas) {
+        $equipos[] = [
+            'descripcion' => 'N/A',
+            'marca'       => 'N/A',
+            'modelo'      => 'N/A',
+            'serie'       => 'N/A',
+            'notas'       => 'N/A',
+        ];
+    }
+    $TBS = new \clsTinyButStrong();
+    $TBS->Plugin(TBS_INSTALL, OPENTBS_PLUGIN);
+    $TBS->LoadTemplate($templatePath, OPENTBS_ALREADY_UTF8);
+
+    $TBS->MergeField('fecha', now()->format('d/m/Y'));
+    $TBS->MergeField('cuadrilla.colaborador1', $nombres[0] ?? ($this->solicitud->user->name ?? 'N/A'));
+    $TBS->MergeField('cuadrilla.colaborador2', $nombres[1] ?? 'N/A');
+    $TBS->MergeField('cuadrilla.cedula1', $cedulas[0] ?? ($this->solicitud->user->cedula ?? 'N/A'));
+    $TBS->MergeField('cuadrilla.cedula2', $cedulas[1] ?? 'N/A');
+    $TBS->MergeField('cuadrilla.nombre', $cuadrilla->cua_nombre ?? 'N/A');
+    $TBS->MergeField('usu.nombre', $cuadrilla->cua_nombre ?? 'N/A');
+
+    foreach ($equipos as $index => $equipo) {
+        $TBS->MergeField("equipos.descripcion_$index", $equipo['descripcion']);
+        $TBS->MergeField("equipos.marca_$index", $equipo['marca']);
+        $TBS->MergeField("equipos.modelo_$index", $equipo['modelo']);
+        $TBS->MergeField("equipos.serie_$index", $equipo['serie']);
+        $TBS->MergeField("equipos.notas_$index", $equipo['notas']);
+    }
+
+    $folderPath = public_path('actas/entrega_equiposUsuarios');
+    if (!file_exists($folderPath)) {
+        mkdir($folderPath, 0755, true);
+    }
+
+    $cleanName = str_replace(' ', '_', strtolower($cuadrilla->cua_nombre ?? 'cuadrilla'));
+    $prefijo   = $tipoActa === 'descargo' ? 'acta_descargo_' : 'acta_liberacion_';
+    $fileName  = $prefijo . $cleanName . '_' . now()->format('Ymd_His') . '.docx';
+    $savePath  = $folderPath . '/' . $fileName;
+    $TBS->Show(OPENTBS_FILE, $savePath);
+    return response()->download($savePath)->deleteFileAfterSend();
+}
 
 
     public function guardarComprobante()

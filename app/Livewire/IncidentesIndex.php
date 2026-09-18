@@ -58,7 +58,6 @@ class IncidentesIndex extends Component
             return;
         }
 
-        // 1️⃣ Guardar incidencia
         $incidencia = Incidencia::create([
             'nombre'  => $this->nombre,
             'detalle' => $this->detalle,
@@ -66,15 +65,9 @@ class IncidentesIndex extends Component
             'user_id' => $this->usuarioEncontrado->id,
         ]);
 
-        // 2️⃣ Guardar archivos (SI EXISTEN)
         if (!empty($this->archivos)) {
             foreach ($this->archivos as $file) {
-
-                // Guardar archivo físicamente
                 $path = $file->store('incidentes/imagenes', 'public');
-
-
-                // Guardar referencia en BD
                 $incidencia->archivos()->create([
                     'archivo' => $path,
                     'tipo'    => $file->extension(),
@@ -87,10 +80,6 @@ class IncidentesIndex extends Component
             'title' => 'Incidencia registrada',
             'text'  => 'La incidencia se guardó correctamente'
         ]);
-
-
-
-        // 3️⃣ Limpiar formulario
         $this->reset([
             'cedula',
             'nombre_usuario',

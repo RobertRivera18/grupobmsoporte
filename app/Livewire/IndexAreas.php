@@ -16,7 +16,6 @@ class IndexAreas extends Component
             
         }
     }
-
     public function render()
     {
         $areas = Area::all();

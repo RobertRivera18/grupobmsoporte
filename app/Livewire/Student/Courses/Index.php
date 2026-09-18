@@ -16,14 +16,14 @@ class Index extends Component
     {
         $user = Auth::user();
 
-      $courses = $user->courses()
-    ->where('courses.status', true) // <-- Especificar 'courses.status'
-    ->when($this->search, function ($query) {
-        $query->where('courses.name', 'like', '%' . $this->search . '%')
-              ->orWhere('courses.description', 'like', '%' . $this->search . '%');
-    })
-    ->withCount(['modules', 'quizzes'])
-    ->paginate(9);
+        $courses = $user->courses()
+            ->where('courses.status', true)
+            ->when($this->search, function ($query) {
+                $query->where('courses.name', 'like', '%' . $this->search . '%')
+                    ->orWhere('courses.description', 'like', '%' . $this->search . '%');
+            })
+            ->withCount(['modules', 'quizzes'])
+            ->paginate(9);
 
         return view('livewire.student.courses.index', [
             'courses' => $courses,

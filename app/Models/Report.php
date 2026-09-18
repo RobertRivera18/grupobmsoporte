@@ -15,7 +15,6 @@ class Report extends Model
         return $this->hasMany(ReporteRecargaDetalle::class, 'reporte_id');
     }
 
-
     public function cuadrillas()
     {
         return $this->belongsToMany(Cuadrilla::class, 'reporte_recarga_detalles', 'reporte_id', 'cuadrilla_id')

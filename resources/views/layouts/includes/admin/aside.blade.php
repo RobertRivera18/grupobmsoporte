@@ -35,6 +35,55 @@
             ]
         ],
 
+        // CURSOS Y CAPACITACIONES
+        [
+            'section' => 'Capacitaciones',
+            'items' => [
+                [
+                    'name' => 'Capacitaciones',
+                    'icon' => 'fas fa-desktop',
+                    'submenu' => [
+                        [
+                            'name' => 'Administrar Cursos',
+                            'url' => route('admin.capacitacion.courses.index'),
+                            'active' => request()->routeIs('admin.capacitacion.courses.index'),
+                            'icon' => 'fas fa-laptop',
+                            'can' => ['Gestion de equipos'],
+                        ],
+
+                          [
+                            'name' => 'Mis Cursos',
+                            'url' => route('student.courses.index'),
+                            'active' => request()->routeIs('student.courses.index'),
+                            'icon' => 'fas fa-laptop',
+                            'can' => ['Gestion de equipos'],
+                        ],
+                        [
+                            'name' => 'Matriculacion Estudiantes',
+                            'url' => route('admin.enrollments.index'),
+                            'active' => request()->routeIs('admin.enrollments.index'),
+                            'icon' => 'fas fa-cogs',
+                            'can' => ['Gestion de Tipos de Equipos'],
+                        ],
+                        [
+                            'name' => 'Banco de Preguntas',
+                            'url' => route('admin.capacitacion.questions.index'),
+                            'active' => request()->routeIs('admin.capacitacion.questions.index'),
+                            'icon' => 'fas fa-user-gear',
+                            'can' => ['Gestion de Equipos-Usuarios'],
+                        ],
+                        [
+                            'name' => 'Certificados',
+                            'url' => route('admin.capacitacion.courses.index'),
+                            'active' => request()->routeIs('admin.capacitacion.courses.index'),
+                            'icon' => 'fas fa-laptop',
+                            'can' => ['Gestion de equipos'],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+
         // GESTIÓN Y OPERACIONES
         [
             'section' => 'Operaciones & Logística',

@@ -20,23 +20,7 @@ class IncidenteVehiculoController extends Controller
 
     public function index()
     {
-        $incidentes = Incidente::with('vehiculo')->orderBy('id', 'desc')->get();
-        $rows = $incidentes->map(function ($incidente) {
-            $vehiculo = $incidente->vehiculo;
-            $fecha = \Carbon\Carbon::parse($incidente->fecha);
-            return [
-                'id'        => $incidente->id,
-                'placa'     => $vehiculo->placa ?? 'S/P',
-                'vehiculo'  => trim(($vehiculo->marca ?? '') . ' ' . ($vehiculo->modelo ?? '')) ?: 'Sin datos',
-                'tipo'      => (int) $incidente->tipo,
-                'fecha_ts'  => $fecha->timestamp,
-                'fecha_fmt' => $fecha->format('d/m/Y h:i A'),
-                'show_url'  => route('incidentesvehiculos.show', $incidente),
-                'edit_url'  => route('incidentesvehiculos.edit', $incidente),
-            ];
-        })->values();
-
-        return view('incidentesvehiculos.index', compact('incidentes', 'rows'));
+        return view('incidentesvehiculos.index');
     }
 
 

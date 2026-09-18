@@ -26,7 +26,6 @@ class ResizeImage implements ShouldQueue
      */
     public function handle(): void
     {
-         //uso de intervention para redimensionar Imagen Cargada
          $manager = new ImageManager(new Driver());
          $image = $manager->read(storage_path('app/public/' . $this->image_path['image_path']));
          $image->scale(1200, null, function ($constraint) {

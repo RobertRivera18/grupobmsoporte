@@ -10,10 +10,11 @@ Se ha registrado un nuevo ticket en la plataforma de soporte de **Grupo BM**. A 
 ### 📋 Detalles del Caso
 
 * **Título del Ticket:** {{ $ticket->tick_titulo }}
-* **Categoría Asignada:** {{ $ticket->categoria->name ?? 'No asignada' }}
+* **Categoría Asignada:** {{ $ticket->category->name ?? 'No asignada' }}
 * **Creado por:** {{ $usuario->name }}
 
-**Descripción del problema:** <div>{!! $ticket->tick_descrip !!}</div>
+**Descripción del problema:**
+{!! $descripcion_html !!}
 
 ---
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SolicitudDesvinculacion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class DesvinculacionController extends Controller
 {
@@ -23,19 +24,51 @@ class DesvinculacionController extends Controller
 
     public function edit(SolicitudDesvinculacion $desvinculacion)
     {
+        if (!auth()->user()->hasRole('Admin') && !auth()->user()->hasRole('Sistemas')) {
+            abort(403, 'No tienes permisos para acceder a la gesti贸n de equipos de Sistemas.');
+        }
+
         return view('admin.desvinculacion.edit', ['solicitud' => $desvinculacion]);
     }
 
-    public function show(SolicitudDesvinculacion $desvinculacion)
+   public function show(SolicitudDesvinculacion $desvinculacion)
     {
+        Gate::authorize('view', $desvinculacion);
         $desvinculacion->load(['user', 'cuadrilla', 'equiposDetalle']);
         $equiposAsignados = $desvinculacion->cuadrilla ? $desvinculacion->cuadrilla->equipos : collect();
-
         return view('admin.desvinculacion.show', [
             'solicitud'        => $desvinculacion,
             'equiposAsignados' => $equiposAsignados,
         ]);
     }
+    
+    //Cambiar Entrega Credecial/Uniformes
+        public function updateTalentoHumano(Request $request, $id)
+    {
+        $solicitud = SolicitudDesvinculacion::findOrFail($id);
+        $solicitud->update([
+            'devolver_credencial' => $request->boolean('devolver_credencial'),
+            'devolver_uniforme'   => $request->boolean('devolver_uniforme'),
+        ]);
+
+        return redirect()->back()->with('success', 'El estado de la entrega se actualizo correctamente.');
+    }
+    
+        public function destroy(SolicitudDesvinculacion $solicitud)
+    {
+        try {
+            if ($solicitud->equiposDetalle()) {
+                $solicitud->equiposDetalle()->delete();
+            }
+            $solicitud->delete();
+            return redirect()->route('admin.desvinculacion.index')
+                ->with('success', 'La solicitud de desvinculacion ha sido eliminada correctamente.');
+        } catch (\Exception $e) {
+            return redirect()->route('admin.desvinculacion.index')
+                ->with('error', 'Ocurrio un error al intentar eliminar la solicitud: ' . $e->getMessage());
+        }
+    }
+    
     public function generarActaLiberacion(SolicitudDesvinculacion $desvinculacion)
 {
     require_once app_path('Libraries/tbs_class.php');

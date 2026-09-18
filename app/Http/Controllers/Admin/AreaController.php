@@ -20,10 +20,14 @@ class AreaController extends Controller
     }
 
 
-    public function show(Area $area)
-    {
-        return view('admin.areas.show', compact('area'));
-    }
+  public function show(Area $area)
+{
+    $user = auth()->user();
+    abort_if(!$user->hasRole('Admin') && $area->responsable_id !== $user->id, 403, 'No tienes autorización para ver los detalles de esta área.');
+    return view('admin.areas.show', compact('area'));
+}
+
+
 
     public function store(Request $request, Area $area)
     {

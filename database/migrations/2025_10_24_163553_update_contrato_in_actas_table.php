@@ -7,16 +7,16 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('actas', function (Blueprint $table) {
-            // Eliminamos el campo ENUM anterior
-            $table->dropColumn('contrato');
+        // Schema::table('actas', function (Blueprint $table) {
+        //     // Eliminamos el campo ENUM anterior
+        //     $table->dropColumn('contrato');
 
-            // Creamos la relación con tipo_contratos
-            $table->foreignId('tipo_contrato_id')
-                ->nullable()
-                ->constrained('tipo_contratos')
-                ->onDelete('set null');
-        });
+        //     // Creamos la relación con tipo_contratos
+        //     $table->foreignId('tipo_contrato_id')
+        //         ->nullable()
+        //         ->constrained('tipo_contratos')
+        //         ->onDelete('set null');
+        // });
     }
 
     public function down(): void

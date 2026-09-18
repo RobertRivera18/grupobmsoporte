@@ -16,10 +16,8 @@
 
     <!-- Filtros -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <!-- Modificado de md:grid-cols-6 a md:grid-cols-7 para incluir el nuevo filtro -->
         <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
 
-            <!-- Buscador -->
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Cuadrilla</label>
                 <input type="text" wire:model.live.debounce.300ms="buscar" placeholder="Buscar..."

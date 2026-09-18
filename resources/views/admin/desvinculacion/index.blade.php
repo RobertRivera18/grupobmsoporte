@@ -11,10 +11,10 @@
         </a>
     </x-slot>
 
-    <!-- Resumen de Métricas Rápidas (KPIs) -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">
+            <div
+                class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">
                 <i class="fas fa-file-alt"></i>
             </div>
             <div>
@@ -24,7 +24,8 @@
         </div>
 
         <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">
+            <div
+                class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">
                 <i class="fas fa-spinner"></i>
             </div>
             <div>
@@ -36,7 +37,8 @@
         </div>
 
         <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+            <div
+                class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
                 <i class="fas fa-check-circle"></i>
             </div>
             <div>
@@ -52,7 +54,8 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50/80 border-b border-gray-200/80 text-gray-500 font-semibold text-xs uppercase tracking-wider">
+                    <tr
+                        class="bg-gray-50/80 border-b border-gray-200/80 text-gray-500 font-semibold text-xs uppercase tracking-wider">
                         <th class="px-6 py-3.5">Colaborador</th>
                         <th class="px-6 py-3.5">Cuadrilla</th>
                         <th class="px-6 py-3.5">Etapa / Estado</th>
@@ -66,7 +69,8 @@
                         <tr class="hover:bg-slate-50/60 transition-colors">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200 uppercase">
+                                    <div
+                                        class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200 uppercase">
                                         {{ substr($solicitud->user->name ?? 'U', 0, 2) }}
                                     </div>
                                     <div>
@@ -89,17 +93,20 @@
 
                             <td class="px-6 py-4">
                                 @if ($solicitud->etapa === 'tthh')
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/60 rounded-lg">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/60 rounded-lg">
                                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                         Talento Humano
                                     </span>
                                 @elseif($solicitud->etapa === 'sistemas')
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200/60 rounded-lg">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200/60 rounded-lg">
                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                                         Pendiente Sistemas
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-lg">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-lg">
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                         Completado
                                     </span>
@@ -122,18 +129,21 @@
                                 @endphp
 
                                 @if (!$tieneRegistros)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200 rounded-lg">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200 rounded-lg">
                                         <i class="fas fa-clock text-gray-400 text-[10px]"></i>
                                         Sin registrar
                                     </span>
                                 @elseif ($tieneObservaciones)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 rounded-lg"
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 rounded-lg"
                                         title="Hay observaciones o novedades en los equipos">
                                         <i class="fas fa-exclamation-triangle text-rose-500 text-[11px]"></i>
                                         Revisar Novedades
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
                                         <i class="fas fa-check-circle text-emerald-500 text-[11px]"></i>
                                         Sin observaciones
                                     </span>
@@ -148,18 +158,37 @@
 
                             <td class="px-6 py-4 text-right whitespace-nowrap">
                                 <div class="inline-flex items-center justify-end gap-1.5">
-                                    <a href="{{ route('admin.desvinculacion.edit', $solicitud) }}"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-2xs"
-                                        title="Gestionar Equipos">
-                                        <i class="fas fa-laptop-code text-xs text-indigo-500"></i>
-                                        <span>Equipos</span>
-                                    </a>
+                                    @hasanyrole('Admin')
+                                        <a href="{{ route('admin.desvinculacion.edit', $solicitud) }}"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-2xs"
+                                            title="Gestionar Equipos">
+                                            <i class="fas fa-laptop-code text-xs text-indigo-500"></i>
+                                            <span>Equipos</span>
+                                        </a>
+                                    @endhasanyrole
 
-                                    <a href="{{ route('admin.desvinculacion.show', $solicitud) }}"
-                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 hover:text-gray-800 transition-all shadow-2xs"
-                                        title="Ver Detalles">
-                                        <i class="fas fa-eye text-xs"></i>
-                                    </a>
+
+                                    @can('view', $solicitud)
+                                        <a href="{{ route('admin.desvinculacion.show', $solicitud) }}"
+                                            class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 hover:text-gray-800 transition-all shadow-2xs"
+                                            title="Ver Detalles">
+                                            <i class="fas fa-eye text-xs"></i>
+                                        </a>
+                                    @endcan
+
+                              
+                                        <form action="{{ route('admin.desvinculacion.destroy', $solicitud) }}"
+                                            method="POST"
+                                            onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta solicitud? Esta acción no se puede deshacer.');"
+                                            class="inline-block">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                class="inline-flex items-center justify-center w-8 h-8 text-rose-500 bg-white border border-gray-200 rounded-lg hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all shadow-2xs"
+                                                title="Eliminar Solicitud">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
+                                        </form>
                                 </div>
                             </td>
                         </tr>
@@ -167,12 +196,15 @@
                         <tr>
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <div class="max-w-xs mx-auto text-center">
-                                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <div
+                                        class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3">
                                         <i class="fas fa-folder-open text-xl"></i>
                                     </div>
                                     <h3 class="text-sm font-semibold text-gray-900">No hay solicitudes</h3>
-                                    <p class="text-xs text-gray-500 mt-1">Aún no se han registrado procesos de desvinculación en el sistema.</p>
-                                    <a href="{{ route('admin.desvinculacion.create') }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-semibold mt-3 hover:underline">
+                                    <p class="text-xs text-gray-500 mt-1">Aún no se han registrado procesos de
+                                        desvinculación en el sistema.</p>
+                                    <a href="{{ route('admin.desvinculacion.create') }}"
+                                        class="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-semibold mt-3 hover:underline">
                                         <i class="fas fa-plus text-[10px]"></i> Crear primera solicitud
                                     </a>
                                 </div>

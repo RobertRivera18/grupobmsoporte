@@ -15,13 +15,9 @@ class ExcelRecargasService
     public function generar()
     {
         $cuadrillas = $this->obtenerCuadrillas();
-
         $spreadsheet = $this->cargarPlantilla();
-
         $sheet = $spreadsheet->getActiveSheet();
-
         $this->generarEncabezado($sheet);
-
         $cantidadCuadrillas = $this->llenarDetalle(
             $sheet,
             $cuadrillas
@@ -97,11 +93,8 @@ class ExcelRecargasService
         $fila = 9;
         $contador = 1;
         $cantidadCuadrillas = 0;
-
         foreach ($cuadrillas as $cuadrilla) {
-
             $inicioFila = $fila;
-
             $ciudad = $this->obtenerCiudad(
                 $cuadrilla->cua_ciudad
             );

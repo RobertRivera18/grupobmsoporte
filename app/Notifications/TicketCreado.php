@@ -38,7 +38,7 @@ class TicketCreado extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Nuevo Ticket Creado')
+            ->subject('HelpDesk GrupoBM Nuevo Ticket')
             ->markdown('mail.ticket-creado', [
                 'notifiable' => $notifiable,
                 'ticket' => $this->ticket,

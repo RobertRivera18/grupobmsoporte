@@ -7,9 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Area extends Model
 {
     protected $fillable = [
-        'nombre'
+        'nombre',
+        'responsable_id',
     ];
 
+    public function responsable()
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
+    }
 
     public function indicadores()
     {
@@ -23,6 +28,6 @@ class Area extends Model
 
     public function auditoriaProcesos()
     {
-        return $this->hasMany(AuditoriaProceso::class,'area_id');
+        return $this->hasMany(AuditoriaProceso::class, 'area_id');
     }
 }

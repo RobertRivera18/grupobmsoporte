@@ -10,95 +10,135 @@ use App\Models\TicketDetalle;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Notifications\TicketCreado;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver; // Corregido el Driver
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 class TicketController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Constructor para aplicar Rate Limit exclusivamente al almacenamiento de tickets.
      */
+   public static function middleware(): array
+    {
+        return [
+            new Middleware('throttle:3,1', only: ['store']),
+        ];
+    }
+
     public function index()
     {
-
         return view('admin.tickets.index');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         $categories = Category::all();
         return view('admin.tickets.create', compact('categories'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-
-
-
-
-
     public function store(Request $request)
     {
         $data = $request->validate([
-            'titulo' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'descripcion' => 'required|string',
-            'documentos.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
+            'titulo'         => 'required|string|max:255',
+            'category_id'    => 'required|exists:categories,id',
+            'descripcion'    => 'required|string',
+            'documentos.*'   => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:8192',
+        ], [
+            'titulo.required'       => 'El título del requerimiento es obligatorio.',
+            'category_id.required'  => 'Debe seleccionar una categoría.',
+            'descripcion.required'  => 'La descripción detallada es obligatoria.',
+            'documentos.*.max'      => 'El tamaño del archivo no debe ser mayor a 8 MB.',
+            'documentos.*.mimes'    => 'El formato del archivo no está permitido. Use JPG, PNG, PDF o DOC.',
         ]);
 
-        // Crear el ticket
-        $ticket = Ticket::create([
-            'usu_id' => auth()->id(),
-            'category_id' => $request->category_id,
-            'tick_titulo' => $request->titulo,
-            'tick_descrip' => $request->descripcion,
-            'tick_estado' => 1,
-            'est' => 1,
-        ]);
+        $storedPaths = [];
 
-        // Procesar documentos si existen
-        if ($request->hasFile('documentos')) {
-            foreach ($request->file('documentos') as $archivo) {
-                $path = $archivo->store('documentos', 'public');
-                Documentos::create([
-                    'tick_id' => $ticket->tick_id,
-                    'doc_nombre' => $path,
-                ]);
+        try {
+            DB::beginTransaction();
+
+            $ticket = Ticket::create([
+                'usu_id'       => auth()->id(),
+                'category_id'  => $data['category_id'],
+                'tick_titulo'  => $data['titulo'],
+                'tick_descrip' => $data['descripcion'],
+                'tick_estado'  => 1,
+                'est'          => 1,
+            ]);
+
+            if ($request->hasFile('documentos')) {
+                $manager    = new ImageManager(new Driver());
+                $imageMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+
+                foreach ($request->file('documentos') as $archivo) {
+                    if (in_array($archivo->getMimeType(), $imageMimes)) {
+                        $encoded = $manager->read($archivo->getRealPath())
+                            ->scaleDown(width: 1600)
+                            ->toWebp(75);
+
+                        $filename = 'tickets/' . Str::uuid() . '.webp';
+                        Storage::disk('public')->put($filename, (string) $encoded);
+                        $path = $filename;
+
+                        unset($encoded);
+                    } else {
+                        $path = $archivo->store('tickets', 'public');
+                    }
+
+                    $storedPaths[] = $path;
+
+                    Documentos::create([
+                        'tick_id'    => $ticket->tick_id,
+                        'doc_nombre' => $path,
+                    ]);
+                }
             }
-        }
 
-        // Notificar a los administradores
-        $admins = User::role('Admin')->get(); // Asegúrate de usar Spatie o un sistema de roles
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            foreach ($storedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            report($e);
+
+            return back()->withInput()->with('swal', [
+                'icon'  => 'error',
+                'title' => 'Algo salió mal',
+                'text'  => 'No se pudo crear el ticket. Intente nuevamente.',
+            ]);
+        }
+        
+        $ticket->load('category');
+        $admins = User::role('Admin')->get();
         Notification::send($admins, new TicketCreado($ticket));
 
-        // Alerta en la interfaz (SweetAlert)
         session()->flash('swal', [
-            'icon' => 'success',
-            'title' => '¡Bien hecho!',
-            'text' => 'Ticket creado con éxito. Sistemas atenderá su ticket.',
-            'position' => 'center',
-            'toast' => true,
-            'timer' => 5000,
-            'showConfirmButton' => false
+            'icon'              => 'success',
+            'title'             => '¡Bien hecho!',
+            'text'              => 'Ticket creado con éxito. Sistemas atenderá su solicitud.',
+            'position'          => 'center',
+            'toast'             => true,
+            'timer'             => 5000,
+            'showConfirmButton' => false,
         ]);
-
+        
         return redirect()->route('admin.tickets.index');
     }
 
-
-
     public function cambiarEstado(Ticket $ticket)
     {
-        // Cambiar estado: 1 = Abierto, 2 = Cerrado
         $ticket->tick_estado = $ticket->tick_estado == 1 ? 2 : 1;
         $ticket->save();
 
-        // Si se cerró el ticket (estado 2), registrar comentario automático
         if ($ticket->tick_estado == 2) {
-            \App\Models\TicketDetalle::create([
+            TicketDetalle::create([
                 'tick_id' => $ticket->tick_id,
                 'usu_id' => auth()->id(),
                 'tickd_descrip' => 'Ticket cerrado.',
@@ -109,44 +149,33 @@ class TicketController extends Controller
         return redirect()->back()->with('success', 'Estado del ticket actualizado.');
     }
 
-
-    /**
-     * Display the specified resource.
-     */
     public function show(Ticket $ticket)
     {
         return view('admin.tickets.show', compact('ticket'));
     }
 
-
-
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Ticket $ticket)
     {
         return view('admin.tickets.edit', compact('ticket'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Ticket $ticket)
     {
-        $data = $request->validate([
+        $request->validate([
             'tickd_descrip' => 'required',
-
         ]);
+
         TicketDetalle::create([
             'tick_id' => $ticket->tick_id,
             'usu_id' => auth()->id(),
             'tickd_descrip' => $request->tickd_descrip,
             'est' => 1,
         ]);
+
         session()->flash('swal', [
             'icon' => 'success',
             'title' => '¡Bien hecho!',
-            'text' => 'El comentario se agrego con exito.',
+            'text' => 'El comentario se agregó con éxito.',
             'position' => 'center',
             'toast' => true,
             'timer' => 5000,
@@ -156,9 +185,6 @@ class TicketController extends Controller
         return redirect()->route('admin.tickets.edit', $ticket);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         //

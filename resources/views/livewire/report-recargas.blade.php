@@ -32,6 +32,10 @@
                                 <i class="fas fa-pen"></i>
                             </a>
 
+                            <a href="{{ route('admin.reportes.show',$reporte) }}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+
 
                             @role('Admin')
                                 <button wire:click="eliminarReporte({{ $reporte->id }})"
