@@ -37,6 +37,7 @@ use App\Livewire\Admin\Capacitacion\Courses\QuizBuilder;
 use App\Livewire\Admin\Capacitacion\Courses\Show;
 use App\Livewire\Admin\Capacitacion\Questions\QuestionIndex;
 use App\Livewire\Admin\Enrollments\Index as EnrollmentsIndex;
+use App\Livewire\DesvinculacionBodega;
 use App\Livewire\ExecutiveDashboard;
 
 use Illuminate\Support\Facades\Route;
@@ -106,7 +107,7 @@ Route::resource('/tipoequipos', TipoEquipoController::class)
     ->names('admin.tipoequipos');
 
 Route::resource('/reportes', ReportController::class)->names('admin.reportes')
-    ->middleware(['can:Gestion de Tipos de Equipos']);
+    ->middleware(['can:Gestion de Reportes']);
 
 Route::resource('/tipocontratos', TipoContratoController::class)
     ->middleware(['can:Gestion de Tipos de Equipos'])
@@ -233,12 +234,20 @@ Route::resource('revisiones', RevisionesVehiculares::class)
     ->names('admin.revisiones');
 
 Route::resource('tecnicos', GestionInventarioController::class)->names('admin.tecnicos');
+
 Route::patch('/desvinculaciones/{id}/talento-humano', [DesvinculacionController::class, 'updateTalentoHumano'])
     ->name('admin.desvinculacion.update-talento-humano');
 
 
 Route::get('desvinculacion/{desvinculacion}/acta-liberacion', [DesvinculacionController::class, 'generarActaLiberacion'])
     ->name('admin.desvinculacion.acta-liberacion');
+
+Route::get('desvinculacion/{desvinculacion}/acta-liberacionBodega', [DesvinculacionBodega::class, 'generarActaLiberacion'])
+    ->name('admin.desvinculacion.acta-liberacion');
+
+Route::get('/desvinculaciones/{solicitud}/bodega', DesvinculacionBodega::class)
+    ->name('admin.desvinculacion.bodega');
+
 Route::resource('desvinculacion', DesvinculacionController::class)
     ->names('admin.desvinculacion');
 

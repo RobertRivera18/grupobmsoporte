@@ -39,4 +39,9 @@ class SolicitudDesvinculacion extends Model
     {
         return $this->hasMany(SolicitudDesvinculacionEquipo::class, 'solicitud_desvinculacion_id');
     }
+
+    public function descuentos(): HasMany
+    {
+        return $this->hasMany(SolicitudDesvinculacionDescuento::class, 'solicitud_id');
+    }
 }

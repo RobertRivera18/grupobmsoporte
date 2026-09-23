@@ -22,6 +22,11 @@ class SolicitudDesvinculacionPolicy
         return $user->hasAnyRole(['Admin']);
     }
 
+    public function gestionarBodega(User $user): bool
+    {
+        return $user->hasAnyRole(['Admin', 'Bodega']);
+    }
+
 
     public function viewAny(User $user): bool
     {

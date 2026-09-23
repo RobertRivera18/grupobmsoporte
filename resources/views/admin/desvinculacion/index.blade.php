@@ -176,19 +176,16 @@
                                         </a>
                                     @endcan
 
-                              
-                                        <form action="{{ route('admin.desvinculacion.destroy', $solicitud) }}"
-                                            method="POST"
-                                            onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta solicitud? Esta acción no se puede deshacer.');"
-                                            class="inline-block">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="inline-flex items-center justify-center w-8 h-8 text-rose-500 bg-white border border-gray-200 rounded-lg hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all shadow-2xs"
-                                                title="Eliminar Solicitud">
-                                                <i class="fas fa-trash-alt text-xs"></i>
-                                            </button>
-                                        </form>
+
+                                    <a href="{{ route('admin.desvinculacion.bodega', $solicitud) }}"
+                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 hover:text-gray-800 transition-all shadow-2xs"
+                                        title="Ver Detalles">
+                                        <i class="fas fa-box text-xs"></i>
+                                    </a>
+
+
+
+
                                 </div>
                             </td>
                         </tr>

@@ -32,8 +32,6 @@ class EquiposCuadrillas extends Component
     public $opciones = false;
     public $firmaBase64 = null;
     public array $firmas = [];
-
-    // Cuantas filas mínimas debe tener la tabla de equipos en el acta de descargo
     private const MIN_FILAS_ACTA_DESCARGO = 7;
 
     public function firmaCapturada(string $tipo): bool
@@ -74,13 +72,10 @@ class EquiposCuadrillas extends Component
         if ($imagen === false) {
             return null;
         }
-
         $carpeta = storage_path('app/tmp');
-
         if (!is_dir($carpeta)) {
             mkdir($carpeta, 0755, true);
         }
-
         $ruta = $carpeta . '/' . $prefijo . uniqid('', true) . '.png';
         file_put_contents($ruta, $imagen);
 
@@ -96,7 +91,6 @@ class EquiposCuadrillas extends Component
         };
     }
 
-    // Listeners para actualizar el componente
     protected $listeners = [
         'refreshComponent' => '$refresh',
     ];

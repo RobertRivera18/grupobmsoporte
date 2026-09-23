@@ -1,6 +1,5 @@
 <div class="max-w-5xl mx-auto mt-8 space-y-6">
 
-    <!-- Header Principal: Info Colaborador -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div class="flex items-center gap-4">
             <div class="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-lg shrink-0">
@@ -12,6 +11,11 @@
                     <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
                         C.I.: {{ $solicitud->user->cedula ?? 'N/A' }}
                     </span>
+                    @if ($solicitud->etapa === 'completado')
+                        <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">
+                            <i class="fas fa-check-circle mr-1"></i> Completado
+                        </span>
+                    @endif
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">
                     Cuadrilla: <span class="font-medium text-slate-700">{{ $solicitud->cuadrilla->cua_nombre ?? ($solicitud->cuadrilla ? 'Cuadrilla #' . $solicitud->cuadrilla->id : 'Sin asignación activa') }}</span>
@@ -117,9 +121,15 @@
                 @endforeach
             </div>
         @else
-            <div class="p-8 text-center border border-dashed rounded-xl bg-slate-50 text-slate-500 text-sm">
-                <i class="fas fa-box-open text-2xl text-slate-300 mb-2 block"></i>
-                La cuadrilla no registra equipos o herramientas asignadas.
+            <!-- Tarjeta informativa cuando no hay equipos asignados -->
+            <div class="p-8 text-center border border-emerald-200 rounded-2xl bg-emerald-50/40 text-slate-700 text-sm space-y-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-900">Sin activos ni herramientas asignadas</h4>
+                    <p class="text-xs text-slate-500 mt-1">El colaborador no tiene equipos pendientes por devolver. Puedes proceder a completar el trámite directamente.</p>
+                </div>
             </div>
         @endif
     </div>
@@ -192,7 +202,11 @@
     <!-- Barra de Acciones Final (Sticky Bottom Bar) -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-            @if (!$this->todosEquiposMarcados)
+            @if ($equiposAsignados->isEmpty())
+                <span class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-medium inline-flex items-center gap-1.5">
+                    <i class="fas fa-check-circle text-emerald-500"></i> No posee equipos asignados.
+                </span>
+            @elseif (!$this->todosEquiposMarcados)
                 <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg font-medium inline-flex items-center gap-1.5">
                     <i class="fas fa-exclamation-triangle text-amber-500"></i> Faltan equipos por clasificar.
                 </span>
@@ -204,23 +218,35 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-            <button type="button" wire:click="generarActa('descargo')"
-                class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                @if (!$this->todosEquiposMarcados) disabled @endif>
-                <i class="fas fa-file-word text-blue-600"></i> Acta Descargo
-            </button>
+            <!-- Solo se habilita si existen equipos -->
+            @if ($equiposAsignados->isNotEmpty())
+                <button type="button" wire:click="generarActa('descargo')"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    @if (!$this->todosEquiposMarcados) disabled @endif>
+                    <i class="fas fa-file-word text-blue-600"></i> Acta Descargo
+                </button>
+            @endif
 
+            <!-- Habilitado siempre -->
             <button type="button" wire:click="generarActa('liberacion')"
                 class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 @if (!$this->todosEquiposMarcados) disabled @endif>
                 <i class="fas fa-file-word text-indigo-600"></i> Acta Liberación
             </button>
 
-            <button type="button" wire:click="guardarDisposicion"
-                class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                @if (!$this->todosEquiposMarcados) disabled @endif>
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
+            <!-- Botón de acción principal -->
+            @if ($equiposAsignados->isEmpty())
+                <button type="button" wire:click="completarSinEquipos"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-1.5">
+                    <i class="fas fa-check-double"></i> Marcar como Completado
+                </button>
+            @else
+                <button type="button" wire:click="guardarDisposicion"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    @if (!$this->todosEquiposMarcados) disabled @endif>
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            @endif
         </div>
     </div>
 

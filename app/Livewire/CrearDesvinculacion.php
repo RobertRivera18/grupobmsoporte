@@ -85,6 +85,7 @@ class CrearDesvinculacion extends Component
         }
 
         return User::where('name', 'like', "%{$this->search}%")
+            ->where('estado', 1)
             ->orWhere('cedula', 'like', "%{$this->search}%")
             ->orderBy('name')
             ->limit(10)

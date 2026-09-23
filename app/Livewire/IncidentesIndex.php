@@ -2,19 +2,22 @@
 
 namespace App\Livewire;
 
+use App\Enums\TipoIncidencia;
 use App\Models\Incidencia;
 use App\Models\User;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 class IncidentesIndex extends Component
 {
     use WithFileUploads;
+
     public $cedula;
     public $nombre_usuario;
     public $usuarioEncontrado = null;
 
-    public $nombre; // nombre de la incidencia
+    public $nombre; // guardará el valor (value) del Enum seleccionado
     public $detalle;
     public $fecha;
     public $archivos = [];
@@ -47,7 +50,7 @@ class IncidentesIndex extends Component
     {
         $this->validate([
             'cedula'      => 'required',
-            'nombre'      => 'required|string|max:255',
+            'nombre'      => ['required', Rule::enum(TipoIncidencia::class)],
             'detalle'     => 'required|string',
             'fecha'       => 'required|date',
             'archivos.*'  => 'nullable|mimes:jpg,jpeg,png,pdf,docx|max:2048',
@@ -80,6 +83,7 @@ class IncidentesIndex extends Component
             'title' => 'Incidencia registrada',
             'text'  => 'La incidencia se guardó correctamente'
         ]);
+
         $this->reset([
             'cedula',
             'nombre_usuario',
@@ -90,7 +94,6 @@ class IncidentesIndex extends Component
             'archivos',
         ]);
     }
-
 
     public function render()
     {

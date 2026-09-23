@@ -17,13 +17,18 @@
                     <span>Volver</span>
                 </a>
 
-                <a href="{{ $solicitud->equiposDetalle->isNotEmpty() ? route('admin.desvinculacion.acta-liberacion', $solicitud->id) : '#' }}"
+                @php
+                    $tieneEquipos = $solicitud->equiposDetalle->isNotEmpty();
+                    $puedeGenerarActa = !$tieneEquipos || $solicitud->equiposDetalle->isNotEmpty();
+                @endphp
+
+                <a href="{{ route('admin.desvinculacion.acta-liberacion', $solicitud->id) }}"
                     @class([
                         'inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm transition',
-                        'bg-indigo-600 hover:bg-indigo-700 text-white' => $solicitud->equiposDetalle->isNotEmpty(),
-                        'bg-slate-200 text-slate-400 cursor-not-allowed pointer-events-none' => $solicitud->equiposDetalle->isEmpty(),
+                        'bg-indigo-600 hover:bg-indigo-700 text-white' => $puedeGenerarActa,
+                        'bg-slate-200 text-slate-400 cursor-not-allowed pointer-events-none' => !$puedeGenerarActa,
                     ]) aria-label="Descargar Acta de Liberación"
-                    title="{{ $solicitud->equiposDetalle->isEmpty() ? 'Esta solicitud no tiene equipos asociados' : 'Descargar Acta' }}">
+                    title="{{ !$tieneEquipos ? 'Generar acta sin equipos asignados' : 'Descargar Acta' }}">
                     <i class="fas fa-file-word text-sm"></i>
                     <span>Acta Liberación</span>
                 </a>
@@ -93,7 +98,7 @@
                         </div>
                     </form>
                 </div>
-                
+
 
                 @if ($solicitud->observaciones)
                     <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
@@ -221,4 +226,5 @@
 
         </div>
     </div>
+    {{-- @livewire('desvinculacion-bodega', ['solicitud' => $solicitud]) --}}
 </x-admin-layout>

@@ -19,33 +19,17 @@ class ReportController extends Controller
 
     public function create()
     {
+        if (!Auth::user()->hasRole('Admin')) {
+            abort(403, 'No tienes permisos para crear reportes.');
+        }
+
         return view('admin.reportes.create');
     }
 
 
     public function edit(Report $reporte)
     {
-        $rol = Auth::user()->getRoleNames()->first();
-
-        $query = Cuadrilla::with(['equipos', 'users'])
-            ->whereHas('equipos');
-
-
-        if ($rol === 'operador1') {
-            $query->where('cua_ciudad', 1);
-        } elseif ($rol === 'operador2') {
-            $query->where('cua_ciudad', 2);
-        }
-
-        $cuadrillas = $query->get();
-        $reporte->load('cuadrillas');
-        $cuadrillasSeleccionadas = $reporte->cuadrillas->pluck('id')->toArray();
-        return view('admin.reportes.edit', [
-            'reporte' => $reporte,
-            'cuadrillas' => $cuadrillas,
-            'cuadrillasSeleccionadas' => $cuadrillasSeleccionadas,
-            'rol' => $rol,
-        ]);
+        return view('admin.reportes.edit', compact('reporte'));
     }
 
 
@@ -91,9 +75,11 @@ class ReportController extends Controller
             if (!empty($desmarcadas)) {
                 $reporte->cuadrillas()->detach($desmarcadas);
             }
+
             foreach ($pivotData as $id => $data) {
                 $reporte->cuadrillas()->syncWithoutDetaching([$id => $data]);
             }
+
             $total = $reporte->cuadrillas()->count() * $valorRecarga;
             $reporte->update([
                 'total' => $total,
@@ -108,8 +94,5 @@ class ReportController extends Controller
 
 
 
-    public function show(Report $reporte)
-    {
-        return view('admin.reportes.show', compact('reporte'));
-    }
+    public function show() {}
 }

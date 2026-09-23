@@ -7,46 +7,42 @@
         </div>
 
         <div class="w-full sm:w-80 relative">
-            <input 
-                type="text" 
-                wire:model.live.debounce.300ms="search" 
+            <input type="text" wire:model.live.debounce.300ms="search"
                 placeholder="Buscar por cuadrilla, ciudad, línea o integrante..."
-                class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            >
-            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
         </div>
     </div>
 
     <!-- Barra de acciones de selección y totales -->
-    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div
+        class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-            <button 
-                type="button" 
-                wire:click="seleccionarTodas" 
-                class="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition"
-            >
+            <button type="button" wire:click="seleccionarTodas"
+                class="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition">
                 Seleccionar Todas
             </button>
-            <button 
-                type="button" 
-                wire:click="deseleccionarTodas" 
-                class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition"
-            >
+            <button type="button" wire:click="deseleccionarTodas"
+                class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition">
                 Deseleccionar Todas
             </button>
         </div>
 
         <div class="text-sm text-gray-700 flex items-center gap-4">
             <span>Seleccionadas: <strong class="text-blue-600 font-bold">{{ count($seleccionadas) }}</strong></span>
-            <span>Total: <strong class="text-green-600 font-bold">${{ number_format(count($seleccionadas) * $valorRecarga, 2) }}</strong></span>
+            <span>Total: <strong
+                    class="text-green-600 font-bold">${{ number_format(count($seleccionadas) * $valorRecarga, 2) }}</strong></span>
         </div>
     </div>
 
     @if ($cuadrillas->isEmpty())
         <div class="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-            <p class="text-gray-500 text-sm">No se encontraron cuadrillas {{ $search ? 'que coincidan con la búsqueda' : 'con equipo asignado' }}.</p>
+            <p class="text-gray-500 text-sm">No se encontraron cuadrillas
+                {{ $search ? 'que coincidan con la búsqueda' : 'con equipo asignado' }}.</p>
         </div>
     @else
         <form wire:submit.prevent="generarReporte">
@@ -67,12 +63,8 @@
                         @foreach ($cuadrillas as $index => $cuadrilla)
                             <tr wire:key="cuadrilla-row-{{ $cuadrilla->id }}" class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-2 text-center">
-                                    <input 
-                                        type="checkbox" 
-                                        wire:model.live="seleccionadas" 
-                                        value="{{ $cuadrilla->id }}"
-                                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    >
+                                    <input type="checkbox" wire:model.live="seleccionadas" value="{{ $cuadrilla->id }}"
+                                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                 </td>
 
                                 <td class="px-4 py-2 text-gray-500">
@@ -80,8 +72,13 @@
                                 </td>
 
                                 <td class="px-4 py-2 text-gray-700 font-medium">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                                        {{ $cuadrilla->cua_ciudad ?? 'Sin ciudad' }}
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs {{ $cuadrilla->cua_ciudad == 1 ? 'bg-blue-100 text-blue-700' : ($cuadrilla->cua_ciudad == 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700') }}">
+                                        {{ match ((int) $cuadrilla->cua_ciudad) {
+                                            1 => 'Guayaquil',
+                                            2 => 'Quito',
+                                            default => 'Sin ciudad',
+                                        } }}
                                     </span>
                                 </td>
 
@@ -92,7 +89,8 @@
                                 <td class="px-4 py-2 text-gray-700">
                                     <div class="flex flex-wrap gap-1">
                                         @foreach ($cuadrilla->equipos as $equipo)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 font-mono">
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 font-mono">
                                                 {{ $equipo->serie }}
                                             </span>
                                         @endforeach
@@ -122,14 +120,15 @@
 
             <!-- Botón Generar con Estado de Carga -->
             <div class="mt-6 flex justify-end">
-                <button 
-                    type="submit" 
-                    wire:loading.attr="disabled"
-                    class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2"
-                >
-                    <svg wire:loading wire:target="generarReporte" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <button type="submit" wire:loading.attr="disabled"
+                    class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <svg wire:loading wire:target="generarReporte" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                            stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
                     </svg>
                     <span>Generar Reporte</span>
                 </button>

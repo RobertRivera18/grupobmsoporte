@@ -104,7 +104,7 @@ class InventarioReporte extends Component
     public function confirmarGuardar()
     {
         try {
-            $this->validate(); // Valida los campos básicos (sin observaciones)
+            $this->validate();
         } catch (ValidationException $e) {
             $this->mostrarErroresValidacion($e);
             throw $e;
@@ -126,7 +126,7 @@ class InventarioReporte extends Component
             }
         }
 
-        $this->mostrarConfirmacion = true; // Abre el modal de confirmación
+        $this->mostrarConfirmacion = true; 
     }
 
     public function cancelarConfirmacion()
