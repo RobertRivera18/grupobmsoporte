@@ -105,8 +105,9 @@ class DesvinculacionBodega extends Component
 
     public function generarActaLiberacion()
     {
-        $this->guardar();
-
+        if (auth()->user()->can('gestionarBodega', $this->solicitud)) {
+            $this->guardar();
+        }
         $templateName = 'acta_liberacionBodega.docx';
         $templatePath = public_path('templates/' . $templateName);
 

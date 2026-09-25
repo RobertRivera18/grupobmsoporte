@@ -16,10 +16,8 @@
 
             @foreach ($historial as $item)
                 <div class="mb-6 relative">
-                    <!-- Punto del timeline -->
                     <div class="absolute -left-2.5 top-1 w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow"></div>
 
-                    <!-- Tarjeta de asignación -->
                     <div class="bg-white p-4 rounded shadow-sm border text-sm text-gray-800">
                         <p class="font-semibold text-blue-600">
                             {{ $item->user->name }}

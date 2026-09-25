@@ -26,7 +26,7 @@ class DesvinculacionController extends Controller
     public function edit(SolicitudDesvinculacion $desvinculacion)
     {
         if (!auth()->user()->hasRole('Admin') && !auth()->user()->hasRole('Sistemas')) {
-            abort(403, 'No tienes permisos para acceder a la gesti贸n de equipos de Sistemas.');
+            abort(403, 'No tienes permisos para acceder a la gestion de equipos de Sistemas.');
         }
 
         return view('admin.desvinculacion.edit', ['solicitud' => $desvinculacion]);

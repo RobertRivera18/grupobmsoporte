@@ -1,6 +1,5 @@
 <div>
     <div class="max-w-9xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
-
         <div class="flex items-center justify-end px-2 sm:px-4 py-2 mb-4">
             <button wire:click="generarExcel"
                 class="flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 font-medium py-2 px-3 sm:px-4 rounded-lg shadow-sm transition duration-200 text-sm sm:text-base w-full sm:w-auto justify-center">
@@ -9,7 +8,6 @@
             </button>
         </div>
 
-        <!-- Barra de búsqueda -->
         <div class="px-2 sm:px-6 py-3 sm:py-4 flex">
             <input wire:keydown="limpiar_page" wire:model.live.debounce.500ms="search"
                 class="text-sm form-input flex-1 shadow-sm rounded-full"
@@ -17,7 +15,6 @@
         </div>
 
         @if ($cuadrillas->count() > 0)
-            <!-- Vista Desktop (pantallas grandes) -->
             <div class="hidden lg:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200" id="tabla-usuarios">
                     <thead class="bg-gray-50">
@@ -53,11 +50,10 @@
                                         </div>
                                     </div>
                                 </td>
-
                                 <td class="py-4 px-6 whitespace-nowrap">
                                     <div class="flex flex-col gap-1">
-                                        @if ($cuadrilla->users->isNotEmpty())
-                                            @foreach ($cuadrilla->users as $user)
+                                        @if ($cuadrilla->usersActivos->isNotEmpty())
+                                            @foreach ($cuadrilla->usersActivos as $user)
                                                 <div class="flex items-center gap-2"
                                                     wire:key="colaborador-{{ $cuadrilla->id }}-{{ $user->id }}">
                                                     <span class="text-xs text-gray-700">
@@ -66,16 +62,16 @@
                                                     @role('Admin')
                                                         <button
                                                             wire:click="eliminarColaborador({{ $user->id }}, {{ $cuadrilla->id }})"
-                                                            wire:confirm="¿Estás seguro de eliminar este colaborador?"
+                                                            wire:confirm="¿Estás seguro de quitar a este colaborador de la cuadrilla?"
                                                             class="text-red-500 text-xs hover:underline"
-                                                            title="Eliminar colaborador">
+                                                            title="Quitar colaborador de la cuadrilla">
                                                             ❌
                                                         </button>
                                                     @endrole
                                                 </div>
                                             @endforeach
                                         @else
-                                            <span class="text-gray-400 text-sm">Sin Integrantes Aun</span>
+                                            <span class="text-gray-400 text-sm">Sin Integrantes Aún</span>
                                         @endif
 
                                         @role('Admin')
@@ -87,8 +83,8 @@
 
                                 <td class="py-4 px-6 whitespace-nowrap">
                                     <div class="flex flex-col gap-1">
-                                        @if ($cuadrilla->equipos->isNotEmpty())
-                                            @foreach ($cuadrilla->equipos as $equipo)
+                                        @if ($cuadrilla->equiposActivos->isNotEmpty())
+                                            @foreach ($cuadrilla->equiposActivos as $equipo)
                                                 <div class="flex items-center gap-2"
                                                     wire:key="equipo-{{ $cuadrilla->id }}-{{ $equipo->id }}">
                                                     <span class="text-xs text-gray-700">
@@ -98,9 +94,9 @@
                                                     @role('Admin')
                                                         <button
                                                             wire:click="eliminarEquipo({{ $cuadrilla->id }}, {{ $equipo->id }})"
-                                                            wire:confirm="¿Estás seguro de eliminar este equipo?"
+                                                            wire:confirm="¿Estás seguro de desasignar este equipo de la cuadrilla?"
                                                             class="text-red-500 text-xs hover:underline"
-                                                            title="Eliminar equipo">
+                                                            title="Desasignar equipo">
                                                             ❌
                                                         </button>
                                                     @endrole
@@ -131,7 +127,7 @@
                                                 wire:click="descargarArchivo({{ $cuadrilla->id }})"
                                                 title="Descargar comprobante"></i>
 
-                                            @if ($cuadrilla->equipos->isNotEmpty())
+                                            @if ($cuadrilla->equiposActivos->isNotEmpty())
                                                 <i class="text-xl fas fa-sticky-note cursor-pointer text-yellow-500 hover:text-yellow-700"
                                                     wire:click="actaDescargo({{ $cuadrilla->id }})"
                                                     title="Generar acta de descargo"></i>
@@ -152,7 +148,6 @@
                 </table>
             </div>
 
-            <!-- Vista Móvil y Tablet (tarjetas) -->
             <div class="lg:hidden space-y-4 px-2">
                 @foreach ($cuadrillas as $cuadrilla)
                     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden"
@@ -181,8 +176,8 @@
                                     Integrantes
                                 </h4>
                                 <div class="space-y-2 ml-6">
-                                    @if ($cuadrilla->users->isNotEmpty())
-                                        @foreach ($cuadrilla->users as $user)
+                                    @if ($cuadrilla->usersActivos->isNotEmpty())
+                                        @foreach ($cuadrilla->usersActivos as $user)
                                             <div class="flex items-center justify-between bg-gray-50 rounded p-2"
                                                 wire:key="mobile-colaborador-{{ $cuadrilla->id }}-{{ $user->id }}">
                                                 <span class="text-sm text-gray-700">{{ $user->name }}</span>
@@ -216,8 +211,8 @@
                                     Equipos
                                 </h4>
                                 <div class="space-y-2 ml-6">
-                                    @if ($cuadrilla->equipos->isNotEmpty())
-                                        @foreach ($cuadrilla->equipos as $equipo)
+                                    @if ($cuadrilla->equiposActivos->isNotEmpty())
+                                        @foreach ($cuadrilla->equiposActivos as $equipo)
                                             <div class="flex items-start justify-between bg-gray-50 rounded p-2"
                                                 wire:key="mobile-equipo-{{ $cuadrilla->id }}-{{ $equipo->id }}">
                                                 <div class="flex-1">
@@ -272,7 +267,7 @@
                                             <span class="text-xs">Opciones</span>
                                         </button>
 
-                                        @if ($cuadrilla->equipos->isNotEmpty())
+                                        @if ($cuadrilla->equiposActivos->isNotEmpty())
                                             <button wire:click="actaDescargo({{ $cuadrilla->id }})"
                                                 class="flex flex-col items-center gap-1 text-yellow-600 hover:text-yellow-800 p-2">
                                                 <i class="fas fa-sticky-note text-xl"></i>
@@ -394,7 +389,7 @@
                 @endforelse
             </div>
 
-            
+
             <div class="mt-4 px-2 sm:px-6">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <span class="text-xs text-gray-500 text-center sm:text-left">
@@ -480,7 +475,7 @@
                 </table>
             </div>
 
-           
+
             <div class="md:hidden space-y-3">
                 @forelse ($this->equiposDisponibles as $equipo)
                     <div class="bg-white border rounded-lg shadow-sm p-3"
@@ -507,7 +502,7 @@
                 @endforelse
             </div>
 
-     
+
             <div class="mt-4 px-2 sm:px-6">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <span class="text-xs text-gray-500 text-center sm:text-left">
@@ -699,7 +694,7 @@
 
             </x-slot>
 
-        
+
             <x-slot name="footer">
                 <div class="flex justify-end">
                     <button wire:click="cerrarModal"

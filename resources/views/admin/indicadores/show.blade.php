@@ -31,6 +31,11 @@
                         <i class="fas fa-clock text-slate-400"></i>
                         {{ $indicador->frecuencia->nombre ?? 'N/A' }}
                     </span>
+
+                    <span class="flex items-center gap-1.5">
+                        <i class="fas fa-clock text-slate-400"></i>
+                        {{ $indicador->sentido }}
+                    </span>
                 </div>
             </div>
 

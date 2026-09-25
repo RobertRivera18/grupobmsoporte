@@ -55,11 +55,7 @@ class ExecutiveDashboard extends Component
         return self::MESES_POR_FRECUENCIA[$key] ?? self::MESES_POR_FRECUENCIA['mensual'];
     }
 
-    /**
-     * Query base reutilizable: indicadores_anio + indicadores + filtros de
-     * año / área / frecuencia. Se usa como punto único de partida para
-     * evitar repetir los mismos joins/where en varios sitios.
-     */
+
     private function baseIndicadoresAnioQuery()
     {
         $query = DB::table('indicadores_anio as ia')
@@ -82,10 +78,7 @@ class ExecutiveDashboard extends Component
         return $query;
     }
 
-    /**
-     * Sufijo de cache determinado por los filtros activos. Todo lo que no
-     * dependa del indicador seleccionado se cachea con esta clave.
-     */
+
     private function panelCacheSufijo(): string
     {
         return "{$this->selectedAnio}:{$this->selectedArea}:{$this->selectedFrecuencia}";
@@ -209,7 +202,6 @@ class ExecutiveDashboard extends Component
 
         ['actual' => $indAnioActual, 'anterior' => $indAnioAnt, 'seguimientos' => $seguimientos] =
             Cache::remember($cacheKey, $this->panelCacheTtl(), function () {
-                // Traemos año actual y año anterior en una sola consulta.
                 $aniosData = DB::table('indicadores_anio')
                     ->where('indicador_id', $this->selectedIndicadorId)
                     ->whereIn('anio', [$this->selectedAnio, $this->selectedAnio - 1])

@@ -10,6 +10,7 @@ class Indicador extends Model
         'area_id',
         'nombre',
         'forma_calculo',
+        'sentido',
         'frecuencia_id',
         'responsable_id',
     ];
@@ -33,5 +34,4 @@ class Indicador extends Model
     {
         return $this->belongsTo(FrecuenciaIndicador::class, 'frecuencia_id');
     }
-   
 }

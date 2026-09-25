@@ -7,6 +7,7 @@ use App\Models\Cuadrilla;
 use App\Models\Equipos;
 use App\Models\User;
 use App\Services\ExcelRecargasService;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
@@ -65,7 +66,6 @@ class EquiposCuadrillas extends Component
         if (!$firmaBase64) {
             return null;
         }
-
         $firma = preg_replace('#^data:image/\w+;base64,#i', '', $firmaBase64);
         $imagen = base64_decode($firma, true);
 
@@ -106,31 +106,29 @@ class EquiposCuadrillas extends Component
     }
 
 
-    //Solo filtra Usuarios Activos
- public function getColaboradoresDisponiblesProperty()
+   public function getColaboradoresDisponiblesProperty()
 {
     return User::query()
         ->select('id', 'name', 'cedula')
         ->where('estado', 1)
-        ->whereDoesntHave('cuadrillas')
+        ->whereDoesntHave('cuadrillas', function ($q) {
+            $q->whereNull('cuadrilla_user.fecha_fin');
+        })
         ->when($this->searchColaboradores, function ($query) {
-            $search = '%' . $this->searchColaboradores . '%';
+            $search = '%' . trim($this->searchColaboradores) . '%';
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', $search)
-                    ->orWhere('cedula', 'like', $search);
+                  ->orWhere('cedula', 'like', $search);
             });
         })
         ->paginate(10, ['*'], 'UserPage');
 }
-
-    // Resetear la página al limpiar la búsqueda
     public function limpiar_page()
     {
         $this->resetPage();
     }
 
-    // Método para abrir modal de colaboradores
     public function agregarColaborador($cuaId)
     {
         $this->cuaIdSeleccionado = $cuaId;
@@ -139,7 +137,6 @@ class EquiposCuadrillas extends Component
         $this->open = true;
     }
 
-    // Método para asignar un colaborador a la cuadrilla seleccionada
     public function asignarColaborador($userId)
     {
         if (!$this->cuaIdSeleccionado) {
@@ -162,8 +159,6 @@ class EquiposCuadrillas extends Component
             'title' => 'Asignado',
             'text' => 'Colaborador asignado correctamente a la cuadrilla.',
         ]);
-
-        // Mantener el modal abierto y actualizar la lista
         $this->resetPage('UserPage');
     }
 
@@ -187,16 +182,13 @@ class EquiposCuadrillas extends Component
         ]);
 
         $cuadrilla = Cuadrilla::find($this->cuaIdSeleccionado);
-
         if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrado.');
             return;
         }
 
         $nombreArchivo = 'comprobante_' . $cuadrilla->id . '_' . time() . '.' . $this->archivo->getClientOriginalExtension();
-
         $ruta = $this->archivo->storeAs('actas/entrega_equiposCuadrilla', $nombreArchivo, 'public');
-
         $cuadrilla->ruta_comprobante = 'actas/entrega_equiposCuadrilla/' . $nombreArchivo;
         $cuadrilla->save();
 
@@ -227,43 +219,98 @@ class EquiposCuadrillas extends Component
     }
 
     // Eliminar un Colaborador de una cuadrilla
-    public function eliminarColaborador($userId, $cuaId)
+    // public function eliminarColaborador($userId, $cuaId)
+    // {
+    //     $user = User::find($userId);
+    //     $cuadrilla = Cuadrilla::find($cuaId);
+
+    //     if ($cuadrilla && $user) {
+    //         $cuadrilla->users()->detach($user->id);
+
+    //         $this->dispatch('swal', [
+    //             'icon' => 'success',
+    //             'title' => 'Eliminado',
+    //             'text' => 'Colaborador eliminado correctamente de la cuadrilla.',
+    //         ]);
+    //     } else {
+    //         $this->dispatch('error', message: 'Colaborador o cuadrilla no encontrados.');
+    //     }
+    // }
+
+    public function eliminarColaborador($userId, $cuaId, $motivo = 'Desasignación manual')
     {
         $user = User::find($userId);
         $cuadrilla = Cuadrilla::find($cuaId);
-
-        if ($cuadrilla && $user) {
-            $cuadrilla->users()->detach($user->id);
-
-            $this->dispatch('swal', [
-                'icon' => 'success',
-                'title' => 'Eliminado',
-                'text' => 'Colaborador eliminado correctamente de la cuadrilla.',
-            ]);
-        } else {
+        if (!$cuadrilla || !$user) {
             $this->dispatch('error', message: 'Colaborador o cuadrilla no encontrados.');
+            return;
         }
+        $registroActivo = DB::table('cuadrilla_user')
+            ->where('cuadrilla_id', $cuadrilla->id)
+            ->where('user_id', $user->id)
+            ->whereNull('fecha_fin')
+            ->first();
+
+        if (!$registroActivo) {
+            $this->dispatch('error', message: 'El colaborador no se encuentra activo en esta cuadrilla.');
+            return;
+        }
+        DB::table('cuadrilla_user')
+            ->where('id', $registroActivo->id)
+            ->update([
+                'fecha_fin'     => now(),
+                'motivo_salida' => $motivo,
+                'updated_at'    => now(),
+            ]);
+
+        $this->dispatch('swal', [
+            'icon'  => 'success',
+            'title' => 'Desasignado',
+            'text'  => 'Colaborador desasignado de la cuadrilla (se conservó el registro histórico).',
+        ]);
     }
 
-    public function getEquiposDisponiblesProperty()
-    {
-        return Equipos::query()
-            ->select('id', 'nombre', 'marca', 'modelo', 'serie')
-            ->whereIn('datos', [2, 3])
-            ->where('estado', 1)
-            ->whereDoesntHave('cuadrilla')
-            ->when($this->searchEquipos, function ($query) {
-                $search = '%' . $this->searchEquipos . '%';
+    // public function getEquiposDisponiblesProperty()
+    // {
+    //     return Equipos::query()
+    //         ->select('id', 'nombre', 'marca', 'modelo', 'serie')
+    //         ->whereIn('datos', [2, 3])
+    //         ->where('estado', 1)
+    //         ->whereDoesntHave('cuadrilla')
+    //         ->when($this->searchEquipos, function ($query) {
+    //             $search = '%' . $this->searchEquipos . '%';
 
-                $query->where(function ($q) use ($search) {
-                    $q->where('nombre', 'like', $search)
-                        ->orWhere('serie', 'like', $search)
-                        ->orWhere('marca', 'like', $search)
-                        ->orWhere('modelo', 'like', $search);
-                });
-            })
-            ->paginate(10, ['*'], 'equipoPage');
-    }
+    //             $query->where(function ($q) use ($search) {
+    //                 $q->where('nombre', 'like', $search)
+    //                     ->orWhere('serie', 'like', $search)
+    //                     ->orWhere('marca', 'like', $search)
+    //                     ->orWhere('modelo', 'like', $search);
+    //             });
+    //         })
+    //         ->paginate(10, ['*'], 'equipoPage');
+    // }
+
+   public function getEquiposDisponiblesProperty()
+{
+    return Equipos::query()
+        ->select('id', 'nombre', 'marca', 'modelo', 'serie')
+        ->whereIn('datos', [2, 3])
+        ->where('estado', 1)
+        ->whereDoesntHave('cuadrillas', function ($q) {
+            $q->whereNull('equipos_cuadrilla.fecha_fin');
+        })
+        ->when($this->searchEquipos, function ($query) {
+            $search = '%' . $this->searchEquipos . '%';
+
+            $query->where(function ($q) use ($search) {
+                $q->where('nombre', 'like', $search)
+                    ->orWhere('serie', 'like', $search)
+                    ->orWhere('marca', 'like', $search)
+                    ->orWhere('modelo', 'like', $search);
+            });
+        })
+        ->paginate(10, ['*'], 'equipoPage');
+}
 
     public function agregarEquipo($cuaId)
     {
@@ -298,26 +345,60 @@ class EquiposCuadrillas extends Component
         $this->resetPage('equipoPage');
     }
 
-    // Eliminar el equipo asignado a una cuadrilla
-    public function eliminarEquipo($cuaId, $equipoId)
+
+    public function eliminarEquipo($cuaId, $equipoId, $motivo = 'Desasignación manual')
     {
         $cuadrilla = Cuadrilla::find($cuaId);
-
         if (!$cuadrilla) {
             $this->dispatch('error', message: 'Cuadrilla no encontrada.');
             return;
         }
+        $registroActivo = DB::table('equipos_cuadrilla')
+            ->where('cuadrilla_id', $cuaId)
+            ->where('equipo_id', $equipoId)
+            ->whereNull('fecha_fin')
+            ->first();
 
-        $cuadrilla->equipos()->detach($equipoId);
+        if (!$registroActivo) {
+            $this->dispatch('error', message: 'El equipo no se encuentra asignado activamente a esta cuadrilla.');
+            return;
+        }
+        DB::table('equipos_cuadrilla')
+            ->where('id', $registroActivo->id)
+            ->update([
+                'fecha_fin'            => now(),
+                'motivo_desasignacion' => $motivo,
+                'updated_at'           => now(),
+            ]);
 
         $this->dispatch('swal', [
-            'icon' => 'success',
-            'title' => 'Eliminado',
-            'text' => 'Equipo eliminado correctamente.',
+            'icon'  => 'success',
+            'title' => 'Desasignado',
+            'text'  => 'Equipo desasignado de la cuadrilla (se conservó el registro histórico).',
         ]);
     }
 
-    public function generarExcel(ExcelRecargasService $service) {
+    // Eliminar el equipo asignado a una cuadrilla
+    // public function eliminarEquipo($cuaId, $equipoId)
+    // {
+    //     $cuadrilla = Cuadrilla::find($cuaId);
+
+    //     if (!$cuadrilla) {
+    //         $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+    //         return;
+    //     }
+
+    //     $cuadrilla->equipos()->detach($equipoId);
+
+    //     $this->dispatch('swal', [
+    //         'icon' => 'success',
+    //         'title' => 'Eliminado',
+    //         'text' => 'Equipo eliminado correctamente.',
+    //     ]);
+    // }
+
+    public function generarExcel(ExcelRecargasService $service)
+    {
         try {
 
             return $service->generar();
@@ -350,8 +431,8 @@ class EquiposCuadrillas extends Component
         }
 
         $cuadrilla = Cuadrilla::with([
-            'users',
-            'equipos' => fn($q) => $q->where('tipo_equipo_id', 4),
+            'usersActivos',
+            'equiposActivos' => fn($q) => $q->where('tipo_equipo_id', 4),
         ])->find($cuaId);
 
         if (!$cuadrilla) {
@@ -365,8 +446,8 @@ class EquiposCuadrillas extends Component
             return;
         }
 
-        $colaboradores = $cuadrilla->users->take(2)->values();
-        $equipos = $cuadrilla->equipos->pluck('serie')->implode("\n") ?: 'Ningún equipo asignado';
+        $colaboradores = $cuadrilla->usersActivos->take(2)->values();
+        $equipos = $cuadrilla->equiposActivos->pluck('serie')->implode("\n") ?: 'Ningún equipo asignado';
         $firmaResponsablePath = $this->guardarFirmaComoArchivo($this->firmas['responsable']);
         $firmaReceptorPath = $this->guardarFirmaComoArchivo($this->firmas['receptor']);
 
@@ -422,111 +503,120 @@ class EquiposCuadrillas extends Component
         return response()->download($savePath);
     }
 
-    public function generarActaEquipo($cuaId)
-    {
-        if (empty($this->firmas['responsable']) || empty($this->firmas['receptor'])) {
-            $this->dispatch('error', message: 'Debe capturar ambas firmas antes de generar el acta');
-            return;
-        }
+public function generarActaEquipo($cuaId)
+{
+    if (empty($this->firmas['responsable'])) {
+        $this->dispatch('error', message: 'Debe capturar al menos la firma del primer colaborador');
+        return;
+    }
 
-        $cuadrilla = Cuadrilla::with([
-            'users',
-            'equipos' => fn($q) => $q->whereIn('tipo_equipo_id', [3, 10]),
-        ])->find($cuaId);
+    $cuadrilla = Cuadrilla::with([
+        'usersActivos',
+        'equiposActivos' => function ($q) {
+            $q->whereIn('equipos.tipo_equipo_id', [4, 10]);
+        },
+    ])->find($cuaId);
 
-        if (!$cuadrilla) {
-            $this->dispatch('error', message: 'Cuadrilla no encontrada.');
-            return;
-        }
+    if (!$cuadrilla) {
+        $this->dispatch('error', message: 'Cuadrilla no encontrada.');
+        return;
+    }
 
-        $equipos = $cuadrilla->equipos->values()->map(fn($equipo, $index) => [
-            'numero' => $index + 1,
-            'descripcion' => $equipo->nombre ?? 'N/A',
-            'marca' => $equipo->marca ?? 'N/A',
-            'modelo' => $equipo->modelo ?? 'N/A',
-            'serie' => $equipo->serie ?? 'N/A',
-        ])->toArray();
+    $equipos = $cuadrilla->equiposActivos->values()->map(fn($equipo, $index) => [
+        'numero'      => $index + 1,
+        'descripcion' => $equipo->nombre ?? 'N/A',
+        'marca'       => $equipo->marca ?? 'N/A',
+        'modelo'      => $equipo->modelo ?? 'N/A',
+        'serie'       => $equipo->serie ?? 'N/A',
+    ])->toArray();
 
-        if (count($equipos) === 0) {
-            $equipos[] = [
-                'numero' => '',
-                'descripcion' => 'N/A',
-                'marca' => 'N/A',
-                'modelo' => 'N/A',
-                'serie' => 'N/A',
-            ];
-        }
+    if (count($equipos) === 0) {
+        $equipos[] = [
+            'numero'      => '',
+            'descripcion' => 'N/A',
+            'marca'       => 'N/A',
+            'modelo'      => 'N/A',
+            'serie'       => 'N/A',
+        ];
+    }
 
-        $firmaResponsablePath = $this->guardarFirmaComoArchivo($this->firmas['responsable']);
+    $firmaResponsablePath = $this->guardarFirmaComoArchivo($this->firmas['responsable']);
+    if (!$firmaResponsablePath || !file_exists($firmaResponsablePath)) {
+        $this->dispatch('error', message: 'No se pudo procesar la firma del responsable');
+        return;
+    }
+
+    $templatePath = public_path('templates/acta_entregaequipo_cuadrilla_nuevo.docx');
+    if (!file_exists($templatePath)) {
+        $this->dispatch('error', message: 'Plantilla no encontrada.');
+        return;
+    }
+
+    $colaboradores = $cuadrilla->usersActivos->take(2)->values();
+    $tieneSegundoColaborador = isset($colaboradores[1]);
+
+    $fileName = 'acta_entrega_equipo_' . now()->format('Ymd_His') . '.docx';
+    $savePath = public_path('actas/entrega_equiposCuadrillas/' . $fileName);
+
+    $template = new TemplateProcessor($templatePath);
+    $template->setValue('fecha', now()->format('d/m/Y'));
+    $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
+
+    $template->setValue('colaborador1', $colaboradores[0]->name ?? 'N/A');
+    $template->setValue('cedula1', $colaboradores[0]->cedula ?? 'N/A');
+    $template->setImageValue('firma_responsable', [
+        'path' => $firmaResponsablePath,
+        'width' => 180,
+        'height' => 70,
+        'ratio' => true,
+    ]);
+
+    if ($tieneSegundoColaborador && !empty($this->firmas['receptor'])) {
+        $template->cloneBlock('bloque_colaborador2', 1, true, true);
         $firmaReceptorPath = $this->guardarFirmaComoArchivo($this->firmas['receptor']);
-
-        if (
-            !$firmaResponsablePath || !file_exists($firmaResponsablePath) ||
-            !$firmaReceptorPath || !file_exists($firmaReceptorPath)
-        ) {
-            $this->dispatch('error', message: 'No se pudo procesar una de las firmas');
-            return;
-        }
-
-        $templatePath = public_path('templates/acta_entregaequipo_cuadrilla_nuevo.docx');
-        if (!file_exists($templatePath)) {
-            $this->dispatch('error', message: 'Plantilla no encontrada.');
-            return;
-        }
-
-        $colaboradores = $cuadrilla->users->take(2)->values();
-        $fileName = 'acta_entrega_equipo_' . now()->format('Ymd_His') . '.docx';
-        $savePath = public_path('actas/entrega_equiposCuadrillas/' . $fileName);
-
-        $template = new TemplateProcessor($templatePath);
-        $template->setValue('fecha', now()->format('d/m/Y'));
-        $template->setValue('colaborador1', $colaboradores[0]->name ?? 'N/A');
-        $template->setValue('cedula1', $colaboradores[0]->cedula ?? 'N/A');
-        $template->setValue('colaborador2', $colaboradores[1]->name ?? 'N/A');
-        $template->setValue('cedula2', $colaboradores[1]->cedula ?? 'N/A');
-        $template->setValue('cuadrilla_nombre', $cuadrilla->cua_nombre);
-        $template->setImageValue('firma_responsable', [
-            'path' => $firmaResponsablePath,
-            'width' => 180,
-            'height' => 70,
-            'ratio' => true,
-        ]);
+        $template->setValue('colaborador2', $colaboradores[1]->name);
+        $template->setValue('cedula2', $colaboradores[1]->cedula);
         $template->setImageValue('firma_receptor', [
             'path' => $firmaReceptorPath,
             'width' => 180,
             'height' => 70,
             'ratio' => true,
         ]);
-
-        $template->cloneRow('descripcion', count($equipos));
-        foreach ($equipos as $i => $equipo) {
-            $row = $i + 1;
-            $template->setValue("numero#$row", $equipo['numero']);
-            $template->setValue("descripcion#$row", $equipo['descripcion']);
-            $template->setValue("marca#$row", $equipo['marca']);
-            $template->setValue("modelo#$row", $equipo['modelo']);
-            $template->setValue("serie#$row", $equipo['serie']);
-        }
-
-        $template->saveAs($savePath);
-
-        ActaFirmada::create([
-            'tipo' => 'equipo',
-            'cuadrilla_id' => $cuadrilla->id,
-            'responsable_id' => $colaboradores[0]->id ?? null,
-            'receptor_id' => $colaboradores[1]->id ?? null,
-            'cedula_responsable' => $colaboradores[0]->cedula ?? null,
-            'cedula_receptor' => $colaboradores[1]->cedula ?? null,
-            'ruta_docx' => 'actas/entrega_equiposCuadrillas/' . $fileName,
-            'firmado_en' => now(),
-        ]);
-
-        @unlink($firmaResponsablePath);
-        @unlink($firmaReceptorPath);
-        $this->firmas = [];
-
-        return response()->download($savePath);
+    } else {
+        $template->deleteBlock('bloque_colaborador2');
     }
+
+    $template->cloneRow('descripcion', count($equipos));
+    foreach ($equipos as $i => $equipo) {
+        $row = $i + 1;
+        $template->setValue("numero#$row", $equipo['numero']);
+        $template->setValue("descripcion#$row", $equipo['descripcion']);
+        $template->setValue("marca#$row", $equipo['marca']);
+        $template->setValue("modelo#$row", $equipo['modelo']);
+        $template->setValue("serie#$row", $equipo['serie']);
+    }
+
+    $template->saveAs($savePath);
+
+    ActaFirmada::create([
+        'tipo'               => 'equipo',
+        'cuadrilla_id'       => $cuadrilla->id,
+        'responsable_id'     => $colaboradores[0]->id ?? null,
+        'receptor_id'        => $colaboradores[1]->id ?? null,
+        'cedula_responsable' => $colaboradores[0]->cedula ?? null,
+        'cedula_receptor'    => $colaboradores[1]->cedula ?? null,
+        'ruta_docx'          => 'actas/entrega_equiposCuadrillas/' . $fileName,
+        'firmado_en'         => now(),
+    ]);
+
+    @unlink($firmaResponsablePath);
+    if (isset($firmaReceptorPath) && file_exists($firmaReceptorPath)) {
+        @unlink($firmaReceptorPath);
+    }
+    $this->firmas = [];
+
+    return response()->download($savePath);
+}
 
     public function cerrarModal()
     {
@@ -599,18 +689,17 @@ class EquiposCuadrillas extends Component
     public function render()
     {
         $user = auth()->user();
-
         $cuadrillas = Cuadrilla::with([
-            'users:id,name,cedula',
-            'equipos:id,nombre,marca,serie',
+            'usersActivos' => fn($query) => $query->select('users.id', 'users.name', 'users.cedula'),
+            'equiposActivos' => fn($query) => $query->select('equipos.id', 'equipos.nombre', 'equipos.marca', 'equipos.serie'),
         ])
             ->when($this->search, function ($query) {
                 $search = '%' . $this->search . '%';
 
                 $query->where(function ($q) use ($search) {
                     $q->where('cua_nombre', 'like', $search)
-                        ->orWhereHas('users', fn($u) => $u->where('name', 'like', $search))
-                        ->orWhereHas('equipos', fn($e) => $e->where('serie', 'like', $search));
+                        ->orWhereHas('usersActivos', fn($u) => $u->where('name', 'like', $search))
+                        ->orWhereHas('equiposActivos', fn($e) => $e->where('serie', 'like', $search));
                 });
             })
             ->when($user->hasRole('operador1'), fn($q) => $q->where('cua_ciudad', 1))

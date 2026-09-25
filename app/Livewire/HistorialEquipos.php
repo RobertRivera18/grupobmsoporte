@@ -17,7 +17,6 @@ class HistorialEquipos extends Component
         $this->equipoId = $equipoId;
 
         $this->equipo = Equipos::find($equipoId);
-
         $this->historial = HistorialAsignacion::where('equipo_id', $equipoId)
             ->with('user')
             ->orderBy('fecha_asignacion', 'asc')

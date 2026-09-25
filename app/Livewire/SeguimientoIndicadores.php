@@ -5,12 +5,12 @@ namespace App\Livewire;
 use App\Models\Indicador;
 use App\Models\IndicadorAnio;
 use Livewire\Component;
+use Livewire\Attributes\On; // Importante para Livewire 3
 
 class SeguimientoIndicadores extends Component
 {
     public $indicador;
 
-    // 📌 Formulario para crear nuevo año
     public $nuevoAnioVisible = false;
     public $anio;
     public $meta;
@@ -18,7 +18,6 @@ class SeguimientoIndicadores extends Component
     public $ultima_revision;
     public $observacion_anio;
 
-    // Valores mensuales (esto ya lo tenías)
     public $valores = [];
     public $observacion;
 
@@ -28,14 +27,21 @@ class SeguimientoIndicadores extends Component
         $this->observacion = $indicador->observacion;
     }
 
-    // 📌 Mostrar/ocultar formulario
+    /**
+     * Se ejecuta automáticamente cuando el hijo dispara 'resultadoActualizado'
+     */
+    #[On('resultadoActualizado')]
+    public function refrescarIndicador()
+    {
+        $this->indicador->refresh();
+    }
+
     public function mostrarFormularioNuevoAnio()
     {
         $this->resetFormularioAnio();
         $this->nuevoAnioVisible = true;
     }
 
-    // 📌 Reset de campos
     private function resetFormularioAnio()
     {
         $this->anio = date('Y');
@@ -45,7 +51,6 @@ class SeguimientoIndicadores extends Component
         $this->observacion_anio = null;
     }
 
-    // 📌 Crear registro en indicadores_anio
     public function crearAnio()
     {
         $this->validate([
@@ -65,11 +70,49 @@ class SeguimientoIndicadores extends Component
             'observacion' => $this->observacion_anio,
         ]);
 
-        // Recargar relaciones
         $this->indicador->refresh();
-
         $this->nuevoAnioVisible = false;
         session()->flash('message', 'Año registrado correctamente.');
+    }
+
+    public function evaluarCumplimiento(IndicadorAnio $anioItem): ?array
+    {
+        if (is_null($anioItem->meta) || is_null($anioItem->resultado_obtenido)) {
+            return null;
+        }
+
+        $sentido = $this->indicador->sentido ?? 'ascendente';
+        $meta = (float) $anioItem->meta;
+        $resultado = (float) $anioItem->resultado_obtenido;
+        $diferencia = $resultado - $meta;
+
+        if ($sentido === 'descendente') {
+            $cumplido = $resultado <= $meta;
+            return [
+                'cumplido' => $cumplido,
+                'mensaje' => $cumplido ? 'Meta cumplida' : 'Exceso sobre meta',
+                'subtexto' => ($diferencia <= 0 ? '' : '+') . number_format($diferencia, 2) . ' respecto a meta',
+                'icono' => $cumplido ? 'fas fa-arrow-down' : 'fas fa-arrow-up',
+            ];
+        }
+
+        if ($sentido === 'mantenimiento') {
+            $cumplido = abs($diferencia) < 0.001;
+            return [
+                'cumplido' => $cumplido,
+                'mensaje' => $cumplido ? 'En rango / Manteniéndose' : 'Desviado de la meta',
+                'subtexto' => ($diferencia > 0 ? '+' : '') . number_format($diferencia, 2) . ' de variación',
+                'icono' => $cumplido ? 'fas fa-check-circle' : 'fas fa-exclamation-circle',
+            ];
+        }
+
+        $cumplido = $resultado >= $meta;
+        return [
+            'cumplido' => $cumplido,
+            'mensaje' => $cumplido ? 'Meta superada' : 'Por debajo de meta',
+            'subtexto' => ($diferencia >= 0 ? '+' : '') . number_format($diferencia, 2) . ' de diferencia',
+            'icono' => $cumplido ? 'fas fa-arrow-up' : 'fas fa-arrow-down',
+        ];
     }
 
     public function render()

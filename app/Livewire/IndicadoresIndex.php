@@ -12,7 +12,7 @@ class IndicadoresIndex extends Component
     public Area $area;
     public $indicadores;
     public $editingIndicadorId = null;
-
+    public $sentido = 'ascendente';
     public $nombre, $forma_calculo, $frecuencia;
     public $frecuencia_id;
     public $frecuencias;
@@ -22,6 +22,7 @@ class IndicadoresIndex extends Component
         'forma_calculo' => 'nullable|string',
         'frecuencia' => 'nullable|string|max:255',
         'frecuencia_id' => 'required|exists:frecuencias_indicadores,id',
+        'sentido' => 'required|in:ascendente,descendente,mantenimiento',
 
     ];
 
@@ -71,8 +72,8 @@ class IndicadoresIndex extends Component
             'nombre'         => $this->nombre,
             'responsable_id' => auth()->id(),
             'forma_calculo' => $this->forma_calculo,
+            'sentido'        => $this->sentido,
             'frecuencia_id' => $this->frecuencia_id,
-
         ]);
 
         $this->resetForm();
@@ -97,10 +98,11 @@ class IndicadoresIndex extends Component
 
         $this->nombre = $indicador->nombre;
         $this->forma_calculo = $indicador->forma_calculo;
+        $this->sentido = $indicador->sentido ?? 'ascendente';
         $this->frecuencia_id = $indicador->frecuencia_id;
     }
 
- 
+
     public function update()
     {
         $this->validate();
@@ -120,10 +122,11 @@ class IndicadoresIndex extends Component
         $indicador->update([
             'nombre'                => $this->nombre,
             'forma_calculo'         => $this->forma_calculo,
+            'sentido'       => $this->sentido,
             'frecuencia_id' => $this->frecuencia_id,
 
         ]);
-
+        $this->sentido = 'ascendente';
         $this->resetForm();
         $this->refreshIndicadores();
         $this->dispatch('close-form');

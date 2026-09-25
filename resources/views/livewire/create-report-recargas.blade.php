@@ -1,5 +1,4 @@
 <div class="p-6 bg-white rounded-lg shadow">
-    <!-- Encabezado y Buscador -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h2 class="text-xl font-bold text-gray-800">Listado de Cuadrillas</h2>
@@ -18,7 +17,6 @@
         </div>
     </div>
 
-    <!-- Barra de acciones de selección y totales -->
     <div
         class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center gap-2">
@@ -88,7 +86,7 @@
 
                                 <td class="px-4 py-2 text-gray-700">
                                     <div class="flex flex-wrap gap-1">
-                                        @foreach ($cuadrilla->equipos as $equipo)
+                                        @foreach ($cuadrilla->equiposActivos as $equipo)
                                             <span
                                                 class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 font-mono">
                                                 {{ $equipo->serie }}
@@ -98,11 +96,11 @@
                                 </td>
 
                                 <td class="px-4 py-2 text-gray-700">
-                                    @if ($cuadrilla->users->isEmpty())
+                                    @if ($cuadrilla->usersActivos->isEmpty())
                                         <span class="text-gray-400 text-xs italic">Sin integrantes</span>
                                     @else
                                         <ul class="list-disc list-inside text-xs space-y-0.5">
-                                            @foreach ($cuadrilla->users as $user)
+                                            @foreach ($cuadrilla->usersActivos as $user)
                                                 <li>{{ $user->name }}</li>
                                             @endforeach
                                         </ul>
@@ -118,7 +116,6 @@
                 </table>
             </div>
 
-            <!-- Botón Generar con Estado de Carga -->
             <div class="mt-6 flex justify-end">
                 <button type="submit" wire:loading.attr="disabled"
                     class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">

@@ -41,7 +41,7 @@ class AuditoriaController extends Controller
             'anio' => $validated['anio'],
             'fecha_inicio' => $validated['fecha_inicio'],
             'fecha_fin' => $validated['fecha_fin'],
-            'estado' => 'Planificada', // opcional si manejas estado
+            'estado' => 'Planificada', 
         ]);
 
         session()->flash('swal', [

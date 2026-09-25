@@ -7,13 +7,12 @@ use Livewire\Component;
 
 class IndexAreas extends Component
 {
+    public string $viewMode = 'list';
     public function eliminar($id)
     {
         $area = Area::find($id);
-
         if ($area) {
-            $area->delete();
-            
+            $area->delete(); 
         }
     }
     public function render()

@@ -55,12 +55,12 @@ class EditarReporte extends Component
     public function render()
     {
         $query = Cuadrilla::with([
-            'equipos' => function ($q) {
+            'equiposActivos' => function ($q) {
                 $q->where('tipo_equipo_id', 4);
             },
             'users'
         ])
-            ->whereHas('equipos', function ($q) {
+            ->whereHas('equiposActivos', function ($q) {
                 $q->where('tipo_equipo_id', 4);
             });
 
@@ -74,10 +74,10 @@ class EditarReporte extends Component
             $term = '%' . trim($this->search) . '%';
             $query->where(function ($q) use ($term) {
                 $q->where('cua_nombre', 'like', $term)
-                    ->orWhereHas('users', function ($u) use ($term) {
+                    ->orWhereHas('usersActivos', function ($u) use ($term) {
                         $u->where('name', 'like', $term);
                     })
-                    ->orWhereHas('equipos', function ($e) use ($term) {
+                    ->orWhereHas('equiposActivos', function ($e) use ($term) {
                         $e->where('serie', 'like', $term);
                     });
             });

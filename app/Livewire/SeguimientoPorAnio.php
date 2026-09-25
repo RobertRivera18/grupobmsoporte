@@ -14,23 +14,15 @@ class SeguimientoPorAnio extends Component
     public $observacion;
     public $periodos = [];
 
-
-
     protected $listeners = [
         'reviewGuardada' => 'actualizarUltimaRevision',
     ];
+
     public function mount(IndicadorAnio $anio)
     {
         $this->anio = $anio;
-
-        // ---------------------------------------------------------
-        // 1️⃣ OBTENER PERIODOS SEGÚN FRECUENCIA
-        // ---------------------------------------------------------
         $this->periodos = $this->getPeriodos($anio->indicador->frecuencia_id);
 
-        // ---------------------------------------------------------
-        // 2️⃣ CARGAR VALORES YA EXISTENTES
-        // ---------------------------------------------------------
         foreach ($anio->seguimientos as $seg) {
             if (isset($this->periodos[$seg->mes])) {
                 $this->valores[$seg->mes] = $seg->valor;
@@ -92,17 +84,16 @@ class SeguimientoPorAnio extends Component
                 'mes' => $periodo
             ],
             [
-                'valor' => $this->valores[$periodo] ?? null
+                'valor' => $this->valores[$periodo] !== "" ? $this->valores[$periodo] : null
             ]
         );
 
         $this->calcularResultado();
         $this->dispatch('actualizarGrafica');
+        $this->dispatch('resultadoActualizado');
         $this->getGraficaData();
-
         session()->flash('message', "{$this->periodos[$periodo]} guardado correctamente.");
     }
-
 
     // ============================================================
     // GUARDAR OBSERVACIÓN
@@ -125,41 +116,85 @@ class SeguimientoPorAnio extends Component
         }
     }
 
-
-
+    // ============================================================
+    // CALCULA Y ACTUALIZA EL RESULTADO CONSOLIDADO DEL AÑO
+    // ============================================================
     public function calcularResultado()
     {
-        // Obtener todos los valores registrados
         $valores = array_filter($this->valores, fn($v) => $v !== null && $v !== "");
 
         if (count($valores) === 0) {
-            return null; // Nada registrado
+            $this->anio->update(['resultado_obtenido' => null]);
+            return;
         }
 
-        // Promedio simple
+        // Calcula el promedio de los periodos ingresados hasta el momento
         $promedio = array_sum($valores) / count($valores);
+        $resultado = round($promedio, 2);
 
-        // Actualizar en base de datos
         $this->anio->update([
-            'resultado_obtenido' => round($promedio, 2)
+            'resultado_obtenido' => $resultado
         ]);
+
+        // Refresca la instancia del modelo local
+        $this->anio->refresh();
     }
 
-    //Crear grafica estadistica en base a los valores ingresados 
+    // ============================================================
+    // EVALÚA SI EL INDICADOR ESTÁ BIEN O MAL SEGÚN SU SENTIDO
+    // ============================================================
+    public function getEstadoEvaluacionProperty()
+    {
+        if (is_null($this->anio->resultado_obtenido) || is_null($this->anio->meta)) {
+            return [
+                'cumple' => null,
+                'mensaje' => 'Sin datos suficientes',
+                'color' => 'bg-gray-100 text-gray-600',
+                'icono' => 'fas fa-minus'
+            ];
+        }
+
+        $sentido = $this->anio->indicador->sentido ?? 'ascendente';
+        $resultado = (float) $this->anio->resultado_obtenido;
+        $meta = (float) $this->anio->meta;
+
+        $cumple = match ($sentido) {
+            'descendente' => $resultado <= $meta,
+            'mantenimiento' => $resultado == $meta,
+            default => $resultado >= $meta, // 'ascendente'
+        };
+
+        if ($cumple) {
+            return [
+                'cumple' => true,
+                'mensaje' => 'Meta cumplida',
+                'color' => 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                'icono' => 'fas fa-check-circle text-emerald-600'
+            ];
+        }
+
+        return [
+            'cumple' => false,
+            'mensaje' => 'Fuera de meta',
+            'color' => 'bg-rose-100 text-rose-800 border-rose-300',
+            'icono' => 'fas fa-exclamation-triangle text-rose-600'
+        ];
+    }
+
     public function getGraficaData()
     {
         return [
-            'labels'    => array_values($this->periodos),       // Nombres de periodos
-            'valores'   => array_map(fn($p) => $this->valores[$p] ?? null, array_keys($this->periodos)),
-            'metaBase'  => $this->anio->meta ?? 0,              // Meta del año
-            // 'frecuencia' => $this->anio->indicador->frecuencia->nombre
+            'labels'   => array_values($this->periodos),
+            'valores'  => array_map(fn($p) => $this->valores[$p] ?? null, array_keys($this->periodos)),
+            'metaBase' => $this->anio->meta ?? 0,
         ];
     }
 
     public function render()
     {
         return view('livewire.seguimiento-por-anio', [
-            'grafica' => $this->getGraficaData()
+            'grafica' => $this->getGraficaData(),
+            'estado'  => $this->estadoEvaluacion,
         ]);
     }
 }

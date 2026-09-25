@@ -1,6 +1,4 @@
 <div class="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6 space-y-6">
-
-    {{-- Header & Filtros --}}
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
@@ -41,8 +39,6 @@
             </div>
         </div>
     </div>
-
-    {{-- KPIs Macro --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
             <div>
@@ -111,9 +107,6 @@
                                     $first = $registros->first();
                                     $meta = $first->meta ?? 1;
                                     $meses = $registros->pluck('valor', 'mes')->toArray();
-
-                                    // Meses en los que este indicador debe reportar, según su frecuencia.
-                                    // Debe coincidir con MESES_POR_FRECUENCIA del componente.
                                     $mesesAplicables = match (
                                         strtolower(trim($first->frecuencia_nombre ?? 'mensual'))
                                     ) {
@@ -188,7 +181,6 @@
             </div>
         </div>
 
-        {{-- Interanual Chart / Empty State --}}
         <div
             class="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between shadow-sm">
             @if ($heatmapData->isNotEmpty() && $indicadorInfo)
@@ -327,11 +319,7 @@
                             }
                         });
                     }
-                    // spanGaps: true evita que la línea se corte en los meses que
-                    // no aplican para la frecuencia del indicador (ej. trimestral).
-                    // Los null que sí corresponden a "debía reportar y no lo hizo"
-                    // igual quedan sin conectar visualmente de forma distinta si
-                    // luego se quiere refinar con un plugin de puntos.
+                    
                     chartInteranual.data.datasets = [{
                             label: `Año ${payload.interanual.anioActual}`,
                             data: payload.interanual.actual,
@@ -363,7 +351,6 @@
                     chartInteranual.update();
                 }
 
-                // 2. Semáforo (Dona)
                 const canvasSemaforo = document.getElementById('semaforoChart');
                 if (canvasSemaforo) {
                     if (!chartSemaforo) {
@@ -398,7 +385,6 @@
                     chartSemaforo.update();
                 }
 
-                // 3. Ranking por Área (Barras Horizontales)
                 const canvasRanking = document.getElementById('rankingChart');
                 if (canvasRanking) {
                     if (!chartRanking) {
@@ -447,7 +433,6 @@
                     chartRanking.update();
                 }
 
-                // 4. Macro Mensual (Barras Verticales)
                 const canvasMacro = document.getElementById('macroChart');
                 if (canvasMacro) {
                     if (!chartMacro) {

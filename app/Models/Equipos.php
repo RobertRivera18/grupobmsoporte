@@ -24,9 +24,24 @@ class Equipos extends Model
         return $this->belongsToMany(User::class, 'equipos_user', 'equipo_id', 'user_id');
     }
 
+
     public function cuadrilla()
     {
-        return $this->belongsToMany(Cuadrilla::class, 'equipos_cuadrilla', 'equipo_id', 'cuadrilla_id');
+        return $this->belongsToMany(Cuadrilla::class, 'equipos_cuadrilla', 'equipo_id', 'cuadrilla_id')
+            ->withPivot(['id', 'fecha_inicio', 'fecha_fin', 'motivo_desasignacion'])
+            ->withTimestamps();
+    }
+    public function cuadrillas()
+    {
+        return $this->belongsToMany(Cuadrilla::class, 'equipos_cuadrilla', 'equipo_id', 'cuadrilla_id')
+            ->withPivot(['id', 'fecha_inicio', 'fecha_fin', 'motivo_desasignacion'])
+            ->withTimestamps();
+    }
+
+
+    public function cuadrillaActiva()
+    {
+        return $this->cuadrilla()->wherePivotNull('fecha_fin');
     }
     public function tipoEquipo()
     {

@@ -92,7 +92,4 @@ class ReportController extends Controller
             ->with('success', 'Reporte actualizado correctamente.');
     }
 
-
-
-    public function show() {}
 }

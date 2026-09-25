@@ -235,7 +235,6 @@ class EquiposTable extends Component
     private function baseQuery()
     {
         $search = "%{$this->search}%";
-
         return Equipos::query()
             ->when($this->search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {

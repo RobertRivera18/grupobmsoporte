@@ -57,9 +57,7 @@
                         @php
                             $tieneObs = !empty($observaciones[$cuadrilla->id] ?? null);
                         @endphp
-                        {{-- Se añade wire:key para garantizar la identificación única de cada fila al filtrar/buscar --}}
                         <tr wire:key="cuadrilla-row-{{ $cuadrilla->id }}" x-data="{ showObs: {{ $tieneObs ? 'true' : 'false' }} }" class="hover:bg-blue-50/30 transition-colors group">
-                            {{-- Checkbox --}}
                             <td class="px-4 py-3 text-center">
                                 <input type="checkbox" wire:model.live="seleccionadas" value="{{ $cuadrilla->id }}"
                                     class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer">
@@ -83,11 +81,11 @@
                             </td>
 
                             <td class="px-4 py-3">
-                                @if ($cuadrilla->users->isEmpty())
+                                @if ($cuadrilla->usersActivos->isEmpty())
                                     <span class="text-xs text-gray-400 italic">Sin integrantes</span>
                                 @else
                                     <div class="flex flex-wrap gap-1">
-                                        @foreach ($cuadrilla->users as $user)
+                                        @foreach ($cuadrilla->usersActivos as $user)
                                             <span
                                                 class="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full border border-gray-200/60">
                                                 {{ $user->name }}
@@ -99,7 +97,7 @@
 
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-1">
-                                    @forelse ($cuadrillas->find($cuadrilla->id)->equipos as $equipo)
+                                    @forelse ($cuadrillas->find($cuadrilla->id)->equiposActivos as $equipo)
                                         <span
                                             class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-700 border border-slate-200">
                                             {{ $equipo->serie }}
@@ -117,7 +115,6 @@
                             <td class="px-4 py-3">
                                 @if (in_array($rol, ['operador1', 'operador2']))
                                     <div class="flex flex-col items-center">
-                                        {{-- Botón para alternar visibilidad si no hay texto --}}
                                         <button type="button" @click="showObs = !showObs"
                                             class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
                                             :class="showObs || '{{ $tieneObs }}' ?
@@ -188,7 +185,6 @@
             </span>
 
             <div class="flex items-center gap-3">
-                {{-- Botón Generar Excel --}}
                 <button type="button" wire:click="generarExcel" wire:loading.attr="disabled"
                     class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium text-sm px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
